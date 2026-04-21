@@ -1,0 +1,6 @@
+[
+  { "order_id": "1001", "user_id": "u1", "product_id": "p1", "product": "Laptop", "status": "shipped", "date": "2026-04-10" },
+  { "order_id": "1002", "user_id": "u2", "product_id": "p2", "product": "Headphones", "status": "delivered", "date": "2026-04-05" },
+  { "order_id": "1003", "user_id": "u1", "product_id": "p5", "product": "USB-C Hub", "status": "processing", "date": "2026-04-18" },
+  { "order_id": "1004", "user_id": "u2", "product_id": "p4", "product": "Webcam HD", "status": "shipped", "date": "2026-04-19" }
+]

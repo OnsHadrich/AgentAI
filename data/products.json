@@ -1,0 +1,54 @@
+[
+  {
+    "product_id": "p1",
+    "name": "Laptop",
+    "category": "Electronics",
+    "price": 999.99,
+    "stock": 15,
+    "description": "High-performance laptop with 16GB RAM and 512GB SSD",
+    "warranty_years": 2,
+    "availability": "in stock"
+  },
+  {
+    "product_id": "p2",
+    "name": "Headphones",
+    "category": "Electronics",
+    "price": 149.99,
+    "stock": 42,
+    "description": "Noise-cancelling wireless headphones with 30hr battery",
+    "warranty_years": 1,
+    "availability": "in stock"
+  },
+  {
+    "product_id": "p3",
+    "name": "Mechanical Keyboard",
+    "category": "Accessories",
+    "price": 89.99,
+    "stock": 0,
+    "description": "Compact TKL mechanical keyboard with RGB backlight",
+    "warranty_years": 1,
+    "availability": "in stock"
+
+  },
+  {
+    "product_id": "p4",
+    "name": "Webcam HD",
+    "category": "Accessories",
+    "price": 59.99,
+    "stock": 8,
+    "description": "1080p webcam with built-in microphone and auto-focus",
+    "warranty_years": 1,
+    "availability": "in stock"
+  },
+  {
+    "product_id": "p5",
+    "name": "USB-C Hub",
+    "category": "Accessories",
+    "price": 39.99,
+    "stock": 25,
+    "description": "7-in-1 USB-C hub with HDMI, SD card, and PD charging",
+    "warranty_years": 1,
+    "availability": "in stock"
+
+  }
+]

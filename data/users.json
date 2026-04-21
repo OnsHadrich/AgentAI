@@ -1,0 +1,4 @@
+[
+  { "user_id": "u1", "name": "Alice", "email": "alice@example.com", "tier": "premium" },
+  { "user_id": "u2", "name": "Bob",   "email": "bob@example.com",   "tier": "standard" }
+]
