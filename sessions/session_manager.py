@@ -1,4 +1,4 @@
-from langchain.memory import ConversationBufferMemory
+from langchain_community.chat_message_histories import ChatMessageHistory
 from datetime import datetime
 
 
@@ -7,10 +7,7 @@ class Session:
         self.user_id = user_id
         self.user_name = user_name
         self.tier = tier
-        self.memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True
-        )
+        self.memory = ChatMessageHistory()   # ← replaces ConversationBufferMemory
         self.created_at = datetime.now()
         self.last_active = datetime.now()
 

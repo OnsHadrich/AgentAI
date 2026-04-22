@@ -3,10 +3,10 @@ from langchain.tools import tool
 
 from model.order_model import OrderInput
 
-with open('orders.json', 'r') as f:
+with open('data/orders.json', 'r') as f:
     orders = json.load(f)
 
-with open('products.json', 'r') as file_products:
+with open('data/products.json', 'r') as file_products:
     products = json.load(file_products)
     
 @tool("get_order_status", args_schema =OrderInput ,return_direct=True, description="Get the status of an order by its ID.")
@@ -77,7 +77,7 @@ def create_order(order_id: str, status: str, user_id: str, product_id: str) -> s
     
     orders.append(new_order)
     
-    with open('orders.json', 'w') as f:
+    with open('data/orders.json', 'w') as f:
         json.dump(orders, f, indent=4)
     return f"Order {order_id} has been created with status {status} for user {user_id}."
 

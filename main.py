@@ -1,47 +1,48 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import json
+import os
 from sessions.session_manager import SessionManager
 from agent.support_agent import create_agent
-from dotenv import load_dotenv
 
-load_dotenv()
-print("dotenv works ✅")
-
-
-
-# Load users from mock DB
 with open("data/users.json") as f:
     USERS = json.load(f)
 
 
 def find_user(email: str) -> dict | None:
-    """Simulate a login lookup by email."""
     for user in USERS:
         if user["email"].lower() == email.lower():
             return user
     return None
 
 
-def chat_loop(session, agent_executor):
-    """Run the conversation loop for a logged-in user."""
+def chat_loop(session, agent):
     print(f"\nWelcome, {session.user_name}! Type 'quit' to logout, 'info' to see session info.\n")
 
     while True:
         user_input = input(f"[{session.user_name}] You: ").strip()
-
-        if not user_input:
-            continue
-
-        if user_input.lower() == "quit":
-            print(f"Goodbye, {session.user_name}!\n")
-            break
-
+        if not user_input: continue
+        if user_input.lower() == "quit": break
         if user_input.lower() == "info":
             print(f"\n{session.summary()}\n")
             continue
 
-        session.touch()  # update last active time
-        response = agent_executor.invoke({"input": user_input})
-        print(f"\nAgent: {response['output']}\n")
+        session.touch()
+
+        try:
+            # ✅ LangGraph v1 format
+            result = agent.invoke(
+                {"messages": [("user", user_input)]},
+                config={"configurable": {"thread_id": session.user_id}}  # keeps history per user
+            )
+            
+            # Get the last AI message (no tool calls shown)
+            last_message = result["messages"][-1]
+            print(f"\nAgent: {last_message.content}\n")
+
+        except Exception as e:
+            print(f"\n[Error] {e}\n")
 
 
 def main():
@@ -59,16 +60,14 @@ def main():
 
         choice = input("\nChoose: ").strip()
 
-        # ── Login ──────────────────────────────
         if choice == "1":
             email = input("Enter your email: ").strip()
             user = find_user(email)
 
             if not user:
-                print(f"No user found with email '{email}'. Try: alice@example.com or bob@example.com")
+                print(f"No user found. Try: alice@example.com or bob@example.com")
                 continue
 
-            # Reuse existing session or create a new one
             session = session_manager.get_session(user["user_id"])
 
             if session:
@@ -80,22 +79,16 @@ def main():
                     tier=user["tier"]
                 )
 
-            # Create agent bound to this session
-            agent_executor = create_agent(session)
+            agent = create_agent(session)   # ← now returns single chain, not tuple
+            chat_loop(session, agent)
 
-            # Enter chat
-            chat_loop(session, agent_executor)
-
-            # After logout, ask to end session or keep it
             keep = input("Keep session alive for later? (y/n): ").strip().lower()
             if keep != "y":
                 session_manager.end_session(user["user_id"])
 
-        # ── List sessions ──────────────────────
         elif choice == "2":
             session_manager.list_sessions()
 
-        # ── Exit ──────────────────────────────
         elif choice == "3":
             print("Shutting down. Goodbye!")
             break

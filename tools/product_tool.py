@@ -1,7 +1,7 @@
 import json
 from langchain.tools import tool
 
-with open('products.json', 'r') as f:
+with open('data/products.json', 'r') as f:
     products = json.load(f)
 
 @tool("list_products", return_direct=True, description="List all products with their details.")
