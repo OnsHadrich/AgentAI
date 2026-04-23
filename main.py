@@ -34,7 +34,7 @@ def chat_loop(session, agent):
             # ✅ LangGraph v1 format
             result = agent.invoke(
                 {"messages": [("user", user_input)]},
-                config={"configurable": {"thread_id": session.user_id}}  # keeps history per user
+                config={"configurable": {"thread_id": f"{session.user_id}-clean"}} # keeps history per user
             )
             
             # Get the last AI message (no tool calls shown)
