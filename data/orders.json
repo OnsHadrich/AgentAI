@@ -88,5 +88,23 @@
     "quantity": 3,
     "status": "cancelled",
     "date": "2026-04-23"
+  },
+  {
+    "order_id": "1011",
+    "user_id": "u1",
+    "product_id": "p4",
+    "product": "Webcam HD",
+    "quantity": 2,
+    "status": "delivered",
+    "date": "2026-04-23"
+  },
+  {
+    "order_id": "ORD-1001",
+    "user_id": "u1",
+    "product_id": "p2",
+    "product": "Headphones",
+    "quantity": 40,
+    "status": "processing",
+    "date": "2026-04-23"
   }
 ]

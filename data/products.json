@@ -14,7 +14,7 @@
     "name": "Headphones",
     "category": "Electronics",
     "price": 149.99,
-    "stock": 41,
+    "stock": 1,
     "description": "Noise-cancelling wireless headphones with 30hr battery",
     "warranty_years": 1,
     "availability": "in stock"
@@ -34,7 +34,7 @@
     "name": "Webcam HD",
     "category": "Accessories",
     "price": 59.99,
-    "stock": 8,
+    "stock": 6,
     "description": "1080p webcam with built-in microphone and auto-focus",
     "warranty_years": 1,
     "availability": "in stock"
