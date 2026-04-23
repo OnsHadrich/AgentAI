@@ -12,7 +12,7 @@ from pydantic import SecretStr
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
-from tools.order_tool import get_order_status, delete_order, create_order, confirm_delivery, cancel_order,list_orders
+from tools.order_tool import get_order_status, delete_order, create_order, confirm_delivery, cancel_order,list_orders,update_order_quantity
 from tools.product_tool import check_product_availability, get_product_details, get_product_price, list_available_products, list_products, search_products
 from prompt.system_prompt import build_system_prompt
 from sessions.session_manager import Session
@@ -38,7 +38,7 @@ def create_agent(session: Session):
     tools = [
         get_order_status, delete_order, create_order, confirm_delivery, cancel_order, list_orders,
         check_product_availability, get_product_details, get_product_price,
-        list_available_products, list_products, search_products
+        list_available_products, list_products, search_products,update_order_quantity
     ]
 
     system_prompt = build_system_prompt(session.user_name, session.tier)

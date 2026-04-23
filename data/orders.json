@@ -32,7 +32,7 @@
     "product_id": "p4",
     "product": "Webcam HD",
     "quantity": 1,
-    "status": "shipped",
+    "status": "delivered",
     "date": "2026-04-19"
   },
   {
@@ -60,6 +60,33 @@
     "product": "Laptop",
     "quantity": 1,
     "status": "processing",
+    "date": "2026-04-23"
+  },
+  {
+    "order_id": "1008",
+    "user_id": "u2",
+    "product_id": "p2",
+    "product": "Headphones",
+    "quantity": 1,
+    "status": "delivered",
+    "date": "2026-04-23"
+  },
+  {
+    "order_id": "1009",
+    "user_id": "u2",
+    "product_id": "p1",
+    "product": "Laptop",
+    "quantity": 2,
+    "status": "delivered",
+    "date": "2026-04-23"
+  },
+  {
+    "order_id": "1010",
+    "user_id": "u2",
+    "product_id": "p5",
+    "product": "USB-C Hub",
+    "quantity": 3,
+    "status": "cancelled",
     "date": "2026-04-23"
   }
 ]
