@@ -1,5 +1,5 @@
 from langchain.tools import tool
-from model.order_model import OrderInput
+from model.order_model import OrderInput, UpdateQuantityInput
 from utils.helpers import PRODUCTS,ORDERS, save_orders, save_products
 
 # ── Tools ─────────────────────────────────────────────────
@@ -198,3 +198,35 @@ def list_orders(user_id: str) -> str:
             f"    Price   : ${product.get('price', 'N/A')}\n"
         )
     return result
+
+
+@tool(args_schema=UpdateQuantityInput)
+def update_order_quantity(order_id: str, quantity: int) -> str:
+    """
+    Use this when a customer wants to CHANGE THE QUANTITY of an existing order.
+    Automatically adjusts product stock if order is still pending or processing.
+    """
+
+    # find order (your create_order uses "id", not "order_id")
+    order = next((o for o in ORDERS if o.get("id") == order_id), None)
+    if not order:
+        return f"No order found with ID: {order_id}."
+
+    if order["status"] in ["delivered", "cancelled", "shipped"]:
+        return f"Cannot change quantity - order {order_id} is already {order['status']}."
+
+    old_qty = int(order.get("quantity", 1))
+    order["quantity"] = quantity
+
+    # adjust stock
+    product = next((p for p in PRODUCTS if p["product_id"] == order["product_id"]), None)
+    stock_msg = ""
+    if product:
+        stock_change = old_qty - quantity  # positive = return to stock
+        product["stock"] += stock_change
+        stock_msg = f"\nStock adjusted by {stock_change:+d} → {product['stock']} units now."
+
+    save_orders()
+    save_products()
+
+    return f"Order {order_id} updated: quantity {old_qty} → {quantity}.{stock_msg}"

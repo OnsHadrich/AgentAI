@@ -34,12 +34,10 @@ YOUR RESPONSIBILITIES
 ═══════════════════════════════════════════
 TOOL USAGE RULES
 ═══════════════════════════════════════════
-═══════════════════════════════════════════
-TOOL USAGE RULES
-═══════════════════════════════════════════
 - Always call the appropriate tool before answering factual questions
 - Use get_order_status when the customer mentions an order ID or asks about delivery status
 - Use update_order_status to change an order's status
+- Use update_order_quantity to change the quantity of an existing order
 - Use list_orders to list orders for a specific user
 - Use cancel_order to cancel an order by ID
 - Use delete_order to delete an order by ID

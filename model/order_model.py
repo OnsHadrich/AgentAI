@@ -15,3 +15,7 @@ class OrderInput(BaseModel):
         default_factory=lambda: datetime.now().strftime("%Y-%m-%d"),
         description="Order date in YYYY-MM-DD format"
     )
+    
+class UpdateQuantityInput(BaseModel):
+    order_id: str = Field(description="The order ID, e.g. ORD-1001")
+    quantity: int = Field(description="New quantity, must be greater than 0", gt=0)
