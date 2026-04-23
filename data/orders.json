@@ -4,6 +4,7 @@
     "user_id": "u1",
     "product_id": "p1",
     "product": "Laptop",
+    "quantity": 1,
     "status": "shipped",
     "date": "2026-04-10"
   },
@@ -12,6 +13,7 @@
     "user_id": "u2",
     "product_id": "p2",
     "product": "Headphones",
+    "quantity": 2,
     "status": "delivered",
     "date": "2026-04-05"
   },
@@ -20,6 +22,7 @@
     "user_id": "u1",
     "product_id": "p5",
     "product": "USB-C Hub",
+    "quantity": 1,
     "status": "processing",
     "date": "2026-04-18"
   },
@@ -28,6 +31,7 @@
     "user_id": "u2",
     "product_id": "p4",
     "product": "Webcam HD",
+    "quantity": 1,
     "status": "shipped",
     "date": "2026-04-19"
   },
@@ -36,6 +40,7 @@
     "user_id": "u1",
     "product_id": "p3",
     "product": "Mechanical Keyboard",
+    "quantity": 1,
     "status": "processing",
     "date": "2026-04-23"
   },
@@ -44,6 +49,7 @@
     "user_id": "u1",
     "product_id": "p5",
     "product": "USB-C Hub",
+    "quantity": 3,
     "status": "processing",
     "date": "2026-04-23"
   },
@@ -52,6 +58,7 @@
     "user_id": "u1",
     "product_id": "p1",
     "product": "Laptop",
+    "quantity": 1,
     "status": "processing",
     "date": "2026-04-23"
   }

@@ -1,43 +1,6 @@
-import json
-from datetime import datetime
 from langchain.tools import tool
-from pydantic import BaseModel, Field
-from typing import Literal
-
-# ── Load data ─────────────────────────────────────────────
-with open("data/orders.json", "r") as f:
-    ORDERS: list[dict] = json.load(f)
-
-with open("data/products.json", "r") as f:
-    PRODUCTS: dict = {p["product_id"]: p for p in json.load(f)}
-
-
-# ── Input schema — matches your JSON fields exactly ───────
-class OrderInput(BaseModel):
-    order_id: str = Field(
-        description="Order ID as a number string e.g. 1001, 1002, 1003"
-    )
-    user_id: str = Field(
-        description="User ID e.g. u1, u2"
-    )
-    product_id: str = Field(
-        description="Product ID e.g. p1, p2, p3, p4, p5"
-    )
-    status: Literal["processing", "shipped", "delivered", "cancelled"] = Field(
-        default="processing",
-        description="Order status"
-    )
-    date: str = Field(
-        default_factory=lambda: datetime.now().strftime("%Y-%m-%d"),
-        description="Order date in YYYY-MM-DD format e.g. 2026-04-10"
-    )
-
-
-def save_orders():
-    """Persist current ORDERS list back to the JSON file."""
-    with open("data/orders.json", "w") as f:
-        json.dump(ORDERS, f, indent=2)
-
+from model.order_model import OrderInput
+from utils.helpers import PRODUCTS,ORDERS, save_orders, save_products
 
 # ── Tools ─────────────────────────────────────────────────
 @tool
@@ -49,6 +12,7 @@ def get_order_status(order_id: str) -> str:
             return (
                 f"Order #{order['order_id']}\n"
                 f"  Product   : {order['product']} (ID: {order['product_id']})\n"
+                f"  Quantity  : {order['quantity']}\n"
                 f"  Status    : {order['status']}\n"
                 f"  Date      : {order['date']}\n"
                 f"  Price     : ${product.get('price', 'N/A')}\n"
@@ -58,24 +22,63 @@ def get_order_status(order_id: str) -> str:
 
 
 @tool("create_order", args_schema=OrderInput)
-def create_order(order_id: str, user_id: str, product_id: str, status: str, date: str) -> str:
-    """Create a new order. Requires order_id, user_id, product_id. Status defaults to processing."""
+def create_order(order_id: str, user_id: str, product_id: str, quantity: int, status: str, date: str) -> str:
+    """
+    Create a new order for a user.
+    Automatically verifies stock availability and reduces stock after successful order.
+    """
 
-    # validate product exists
+    # ── Step 1: validate product exists ──────────────────
     if product_id not in PRODUCTS:
         available = ", ".join(PRODUCTS.keys())
         return f"Product '{product_id}' not found. Available product IDs: {available}"
 
-    # validate order_id not already taken
+    # ── Step 2: validate order ID is unique ──────────────
     existing_ids = [o["order_id"] for o in ORDERS]
     if order_id in existing_ids:
-        return f"Order ID '{order_id}' already exists. Existing IDs: {', '.join(existing_ids)}"
+        return f"Order ID '{order_id}' already exists. Please use a different order ID."
+
+    # ── Step 3: validate quantity ─────────────────────────
+    if quantity < 1:
+        return "Quantity must be at least 1."
+
+    # ── Step 4: check stock availability ─────────────────
+    product = PRODUCTS[product_id]
+    current_stock = product.get("stock", 0)
+
+    if current_stock == 0:
+        return (
+            f"Cannot create order — '{product['name']}' is out of stock.\n"
+            f"  Current stock : 0 units available"
+        )
+
+    if quantity > current_stock:
+        return (
+            f"Cannot create order — not enough stock for '{product['name']}'.\n"
+            f"  Requested : {quantity} units\n"
+            f"  Available : {current_stock} units\n"
+            f"  Please reduce quantity to {current_stock} or less."
+        )
+
+    # ── Step 5: reduce stock ──────────────────────────────
+    new_stock = current_stock - quantity
+    PRODUCTS[product_id]["stock"] = new_stock
+
+    # update availability flag if stock hits zero
+    if new_stock == 0:
+        PRODUCTS[product_id]["availability"] = "out of stock"
+
+    save_products()
+
+    # ── Step 6: create the order ──────────────────────────
+    total = product["price"] * quantity
 
     new_order = {
         "order_id": order_id,
         "user_id": user_id,
         "product_id": product_id,
-        "product": PRODUCTS[product_id]["name"],   # auto-fill product name from products.json
+        "product": product["name"],
+        "quantity": quantity,
         "status": status,
         "date": date
     }
@@ -85,24 +88,38 @@ def create_order(order_id: str, user_id: str, product_id: str, status: str, date
 
     return (
         f"Order created successfully!\n"
-        f"  Order ID : {order_id}\n"
-        f"  User     : {user_id}\n"
-        f"  Product  : {PRODUCTS[product_id]['name']} ({product_id})\n"
-        f"  Status   : {status}\n"
-        f"  Date     : {date}"
+        f"  Order ID  : {order_id}\n"
+        f"  User      : {user_id}\n"
+        f"  Product   : {product['name']} ({product_id})\n"
+        f"  Quantity  : {quantity} units\n"
+        f"  Total     : ${product['price']} x {quantity} = ${total:.2f}\n"
+        f"  Status    : {status}\n"
+        f"  Date      : {date}\n"
+        f"  Stock     : {current_stock} → {new_stock} units remaining"
     )
-
-
 @tool
 def delete_order(order_id: str) -> str:
     """Delete an order permanently by order ID e.g. 1001."""
     global ORDERS
     for order in ORDERS:
         if order["order_id"] == order_id:
+            product_id = order["product_id"]
+            quantity = order["quantity"]
+            # ── Step 1: restore stock if order was not cancelled ──
+            if product_id in PRODUCTS and order["status"] != "cancelled":
+                PRODUCTS[product_id]["stock"] += quantity
+                # update availability if stock was previously zero
+                if PRODUCTS[product_id]["stock"] == 0 and PRODUCTS[product_id]["availability"] == "out of stock":
+                    PRODUCTS[product_id]["availability"] = "in stock"
+                save_products()
+                stock_info = f"Restored {quantity} units to stock for product '{PRODUCTS[product_id]['name']}' (ID: {product_id})."
+            else:
+                stock_info = "No stock adjustment needed (order was cancelled or product not found)."   
             ORDERS = [o for o in ORDERS if o["order_id"] != order_id]
             save_orders()
             return (
-                f"Order {order_id} ({order['product']}) has been deleted successfully."
+                f"Order {order_id} ({order['product']}) has been deleted successfully.\n"
+                f"{stock_info}"
             )
     return f"No order found with ID: {order_id}."
 
@@ -126,24 +143,40 @@ def confirm_delivery(order_id: str) -> str:
     return f"No order found with ID: {order_id}."
 
 
+
 @tool
 def cancel_order(order_id: str) -> str:
-    """Cancel an order by order ID. Cannot cancel already delivered orders."""
+    """
+    Cancel an order by order ID.
+    Automatically restores product stock when a processing or shipped order is cancelled.
+    """
     for order in ORDERS:
         if order["order_id"] == order_id:
             if order["status"] == "delivered":
-                return (
-                    f"Order {order_id} cannot be cancelled — "
-                    f"it has already been delivered on {order['date']}."
-                )
+                return f"Order {order_id} cannot be cancelled — it has already been delivered."
             if order["status"] == "cancelled":
                 return f"Order {order_id} is already cancelled."
+
             old_status = order["status"]
+            qty = order.get("quantity", 1)
+            product_id = order["product_id"]
+
+            # ── restore stock on cancel ───────────────────
+            if product_id in PRODUCTS:
+                PRODUCTS[product_id]["stock"] += qty
+                if PRODUCTS[product_id]["availability"] == "out of stock":
+                    PRODUCTS[product_id]["availability"] = "in stock"
+                save_products()
+                stock_msg = f"  Stock restored : +{qty} units → {PRODUCTS[product_id]['stock']} total"
+            else:
+                stock_msg = "  Stock : product not found, no stock restored"
+
             order["status"] = "cancelled"
             save_orders()
             return (
-                f"Order {order_id} ({order['product']}) has been cancelled.\n"
-                f"  {old_status} → cancelled"
+                f"Order {order_id} ({order['product']} x{qty}) cancelled.\n"
+                f"  {old_status} → cancelled\n"
+                f"{stock_msg}"
             )
     return f"No order found with ID: {order_id}."
 
@@ -159,6 +192,7 @@ def list_orders(user_id: str) -> str:
         result += (
             f"\n  Order #{order['order_id']}\n"
             f"    Product : {order['product']} ({order['product_id']})\n"
+            f"    Quantity: {order['quantity']}\n"
             f"    Status  : {order['status']}\n"
             f"    Date    : {order['date']}\n"
             f"    Price   : ${product.get('price', 'N/A')}\n"
