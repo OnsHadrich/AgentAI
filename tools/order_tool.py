@@ -1,5 +1,5 @@
 from langchain.tools import tool
-from model.order_model import OrderInput, UpdateQuantityInput
+from schema.order_schema import OrderInput, UpdateQuantityInput
 from utils.helpers import PRODUCTS,ORDERS, save_orders, save_products
 
 # ── Tools ─────────────────────────────────────────────────
