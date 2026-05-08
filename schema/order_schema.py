@@ -16,6 +16,14 @@ class OrderInput(BaseModel):
         description="Order date in YYYY-MM-DD format"
     )
     
-class UpdateQuantityInput(BaseModel):
-    order_id: str = Field(description="The order ID, e.g. ORD-1001")
-    quantity: int = Field(description="New quantity, must be greater than 0", gt=0)
+    
+class OrderCreateRequest(BaseModel):
+    order_id: str
+    product_id: str
+    quantity: int = 1
+    status: Literal["processing", "shipped", "delivered", "cancelled"] = "processing"
+    date: str
+
+
+class OrderActionRequest(BaseModel):
+    order_id: str
