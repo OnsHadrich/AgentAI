@@ -3,14 +3,16 @@ from fastapi import Depends
 from jose import jwt
 from pydantic import ValidationError
 
-from config import configs
-from app.core.container import Container
-from app.core.exceptions import AuthError
-from app.core.security import ALGORITHM, JWTBearer
-from app.model.user import User
-from app.schema.auth_schema import Payload
-from app.services.user_service import UserService
+from config import Configs
+from core.container import Container
+from core.exceptions import AuthError
+from core.security import  JWTBearer
+from model.user_model import User
+from schema.auth_schema import Payload
+from services.user_service import UserService
+from jose import JWTError
 
+configs = Configs()
 
 @inject
 def get_current_user(
@@ -18,9 +20,9 @@ def get_current_user(
     service: UserService = Depends(Provide[Container.user_service]),
 ) -> User:
     try:
-        payload = jwt.decode(token, configs.SECRET_KEY, algorithms=ALGORITHM)
+        payload = jwt.decode(token, configs.JWT_SECRET, algorithms=[configs.JWT_ALGORITHM])
         token_data = Payload(**payload)
-    except (jwt.JWTError, ValidationError):
+    except (JWTError, ValidationError):
         raise AuthError(detail="Could not validate credentials")
     current_user: User = service.get_by_id(token_data.id)
     if not current_user:
@@ -37,13 +39,13 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 def get_current_user_with_no_exception(
     token: str = Depends(JWTBearer()),
     service: UserService = Depends(Provide[Container.user_service]),
-) -> User:
+) -> User | None:
     try:
-        payload = jwt.decode(token, configs.SECRET_KEY, algorithms=ALGORITHM)
+        payload = jwt.decode(token, configs.JWT_SECRET, algorithms=[configs.JWT_ALGORITHM])
         token_data = Payload(**payload)
-    except (jwt.JWTError, ValidationError):
+    except (JWTError, ValidationError):
         return None
-    current_user: User = service.get_by_id(token_data.id)
+    current_user: User | None = service.get_by_id(token_data.id)
     if not current_user:
         return None
     return current_user
