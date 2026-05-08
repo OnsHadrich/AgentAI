@@ -1,46 +1,30 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Tuple
-
+from fastapi import HTTPException
 from fastapi import Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
-
 from core.config import Configs
 from core.exceptions import AuthError
+from redis.asyncio import Redis
+import bcrypt
 
 configs = Configs()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 JWT_ALGORITHM = configs.JWT_ALGORITHM
 
 
-def create_access_token(subject: dict[str, Any], expires_delta: timedelta | None = None) -> Tuple[str, str]:
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=configs.JWT_EXPIRE_MINUTES)
-    payload = {"exp": expire, **subject}
-    encoded_jwt = jwt.encode(payload, configs.JWT_SECRET, algorithm=JWT_ALGORITHM)
-    expiration_datetime = expire.strftime(configs.DATETIME_FORMAT)
-    return encoded_jwt, expiration_datetime
+# ── Redis ──────────────────────────────────────────────────
+redis_client: Redis = Redis(
+    host=configs.REDIS_HOST,
+    port=configs.REDIS_PORT,
+    db=configs.REDIS_DB,
+    password=configs.REDIS_PASSWORD,
+    decode_responses=True
+)
 
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def decode_jwt(token: str) -> dict[str, Any] | None:
-    try:
-        decoded_token = jwt.decode(token, configs.JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return decoded_token if decoded_token["exp"] >= int(round(datetime.utcnow().timestamp())) else None
-    except Exception:
-        return None
-
-
+# ── Bearer scheme ──────────────────────────────────────────
 class JWTBearer(HTTPBearer): 
     def __init__(self, auto_error: bool = True):
         super(JWTBearer, self).__init__(auto_error=auto_error)
@@ -56,12 +40,51 @@ class JWTBearer(HTTPBearer):
         else:
             raise AuthError(detail="Invalid authorization code.")
 
-    def verify_jwt(self, jwt_token: str) -> bool:
-        is_token_valid: bool = False
+    def verify_jwt(self, token: str) -> bool:
         try:
-            payload = decode_jwt(jwt_token)
-        except Exception:
-            payload = None
-        if payload:
-            is_token_valid = True
-        return is_token_valid
+            jwt.decode(token, configs.JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            return True
+        except JWTError:
+            return False
+
+# ── Token creation ─────────────────────────────────────────
+def create_access_token(subject: dict[str, Any], expires_delta: timedelta | None = None) -> Tuple[str, datetime]:
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(minutes=configs.JWT_EXPIRE_MINUTES)
+    )
+    payload = {"exp": expire, **subject}
+    token = jwt.encode(payload, configs.JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return token, expire
+
+
+# ── Token validation ───────────────────────────────────────
+async def decode_token(token: str) -> dict:
+    if await redis_client.exists(f"blacklist:{token}"):
+        raise HTTPException(status_code=401, detail="Token has been revoked.")
+    try:
+        return jwt.decode(token, configs.JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
+
+
+# ── Token blacklist ────────────────────────────────────────
+async def blacklist_token(token: str):
+    try:
+        payload = jwt.decode(token, configs.JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        exp = payload.get("exp")
+        if exp:
+            ttl = int(exp - datetime.now(timezone.utc).timestamp())
+            if ttl > 0:
+                await redis_client.setex(f"blacklist:{token}", ttl, "1")
+    except JWTError:
+        pass
+
+
+# ── Password hashing ───────────────────────────────────────
+
+
+def get_password_hash(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
