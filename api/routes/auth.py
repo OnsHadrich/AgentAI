@@ -1,20 +1,23 @@
-import json
 from fastapi import APIRouter, HTTPException, Depends
 from core.container import Container
 from core.exceptions import AuthError
-from api.auth_handler import blacklist_token, get_current_user
 from services.auth_service import AuthService
 from sessions.session_manager import SessionManager
 from repositories.user_repository import UserRepository
 from core.middleware import inject
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Depends, HTTPException
-from schema.auth_schema import SignIn, SignInResponse, SignUp, SignOutResponse, SessionInfo
+from schema.auth_schema import SignIn, SignInResponse, SignUp
 from schema.user_schema import RegisterResponse
+from core.dependencies import get_current_active_user
+from core.security import blacklist_token
+
+
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 session_manager = SessionManager()
 user_repo = UserRepository()
+
 
 
 
@@ -75,12 +78,12 @@ def sign_up(
 
 @router.post("/signout")
 @inject
-def sign_out(
-    current_user: dict = Depends(get_current_user),
+async def sign_out(
+    current_user: dict = Depends(get_current_active_user),
     session_manager: SessionManager = Depends(Provide[Container.session_manager])
 ):
     """Logout — blacklist token and end session."""
-    blacklist_token(current_user["token"])
+    await blacklist_token(current_user["token"])  # blacklist current token
     session_manager.end_session(current_user["user_id"])
     return {"message": f"Logged out successfully."}
 
@@ -88,7 +91,7 @@ def sign_out(
 @router.get("/me")
 @inject
 def get_me(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     session_manager: SessionManager = Depends(Provide[Container.session_manager])
 ):
     """Get current logged-in user info."""
