@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
@@ -56,8 +56,6 @@ class Configs(BaseSettings):
 class TestConfigs(Configs):
     ENV: str = "test"
 
-
-configs = Configs()
 
 if ENV == "prod":
     pass
