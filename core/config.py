@@ -3,12 +3,23 @@ from pathlib import Path
 from typing import List
 
 from dotenv import load_dotenv
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 load_dotenv()
 
 ENV: str = ""
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
+
+
+def env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
 
 
 class Configs(BaseSettings):
@@ -27,12 +38,12 @@ class Configs(BaseSettings):
     # ── Auth ──────────────────────────────────────────────
     JWT_SECRET: str = os.getenv("JWT_SECRET", "fallback_secret")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+    JWT_EXPIRE_MINUTES: int = env_int("JWT_EXPIRE_MINUTES", 60)
     
     # ── Redis ─────────────────────────────────────────────
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
-    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
-    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    REDIS_PORT: int = env_int("REDIS_PORT", 6379)
+    REDIS_DB: int = env_int("REDIS_DB", 0)
     REDIS_PASSWORD: str | None = os.getenv("REDIS_PASSWORD", None)
     
     # ── AI ────────────────────────────────────────────────
@@ -48,6 +59,21 @@ class Configs(BaseSettings):
     USERS_FILE: Path = DATA_DIR / "users.json"
     ORDERS_FILE: Path = DATA_DIR / "orders.json"
     PRODUCTS_FILE: Path = DATA_DIR / "products.json"
+
+    @field_validator("JWT_EXPIRE_MINUTES", "REDIS_PORT", "REDIS_DB", mode="before")
+    @classmethod
+    def parse_int_settings(cls, value, info):
+        defaults = {
+            "JWT_EXPIRE_MINUTES": 60,
+            "REDIS_PORT": 6379,
+            "REDIS_DB": 0,
+        }
+        if value is None or value == "":
+            return defaults[info.field_name]
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return defaults[info.field_name]
 
     class Config:
         case_sensitive = True
