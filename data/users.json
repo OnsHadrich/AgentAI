@@ -1,4 +1,4 @@
 [
-  { "user_id": "u1", "name": "Alice", "email": "alice@example.com", "tier": "premium" },
-  { "user_id": "u2", "name": "Bob",   "email": "bob@example.com",   "tier": "standard" }
+  { "user_id": "u1", "name": "Alice", "email": "alice@example.com", "password_hash": "hashed_password1", "tier": "premium" },
+  { "user_id": "u2", "name": "Bob",   "email": "bob@example.com",   "password_hash": "hashed_password2", "tier": "standard" }
 ]
