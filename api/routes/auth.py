@@ -34,7 +34,7 @@ def sign_in(
 ):
     """Login with email and password — returns JWT token."""
     try:
-        result = auth_service.sign_in(body)    # ← auth logic stays in service
+        result, user = auth_service.sign_in(body)    # ← auth logic stays in service
     except AuthError as e:
         raise HTTPException(status_code=401, detail=e.detail)
 
@@ -43,22 +43,12 @@ def sign_in(
     if session:
         msg = f"Welcome back! Session resumed."
     else:
-        session_manager.create_session(
-            user_id=result.user_id,
-            user_name=result.user_name,
-            tier=result.tier
-        )
+        session_manager.create_session(user)
         msg = f"Welcome, {result.user_name}!"
 
-    return SignInResponse(
-        access_token=result.access_token,
-        token_type="bearer",
-        expiration=result.expiration,
-        user_id=result.user_id,
-        user_name=result.user_name,
-        tier=result.tier,  
-        message=msg
-    )
+    result.message = msg
+
+    return result
 
 
 @router.post("/signup", response_model=RegisterResponse, status_code=201)
