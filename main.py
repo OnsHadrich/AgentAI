@@ -4,7 +4,7 @@ load_dotenv()
 import json
 import os
 from sessions.session_manager import SessionManager
-from agent.support_agent import create_agent
+from modular_agentic_ai.agent.support_agent import create_agent
 
 with open("data/users.json") as f:
     USERS = json.load(f)
