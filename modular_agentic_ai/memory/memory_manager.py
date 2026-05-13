@@ -1,5 +1,5 @@
-from agent.llm_client import LLMClient
-from memory.conversation_store import ConversationStore
+from modular_agentic_ai.agent.llm_client import LLMClient
+from modular_agentic_ai.memory.conversation_store import ConversationStore
 
 
 class MemoryManager:

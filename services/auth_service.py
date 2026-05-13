@@ -7,6 +7,7 @@ from core.exceptions import AuthError
 from core.config import Configs
 from datetime import timedelta
 from utils.hash import get_rand_hash
+from typing import Tuple
 
 from schema.user_schema import RegisterResponse
 
@@ -16,7 +17,7 @@ class AuthService:
     def __init__(self, user_repository: UserRepository | None = None):
         self.user_repository = user_repository or UserRepository()
 
-    def sign_in(self, sign_in_info: SignIn) -> SignInResponse:
+    def sign_in(self, sign_in_info: SignIn) -> Tuple[SignInResponse, User]:
         user = self.user_repository.find_by_email(sign_in_info.email)
 
         if not user:
@@ -42,11 +43,12 @@ class AuthService:
         return SignInResponse(
             access_token=access_token,
             token_type="bearer",
-            expiration= expiration,
+            expiration=expiration,
             user_id=user.user_id,
             user_name=user.name,
             tier=user.tier,
-        )
+            message="Login successful",
+        ), user
         
     def sign_up(self, sign_up_info: SignUp) -> RegisterResponse:
         try:

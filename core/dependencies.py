@@ -3,7 +3,7 @@ from fastapi import Depends
 from jose import jwt
 from pydantic import ValidationError
 
-from config import Configs
+from core.config import Configs
 from core.container import Container
 from core.exceptions import AuthError
 from core.security import  JWTBearer

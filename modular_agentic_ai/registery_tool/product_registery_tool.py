@@ -1,5 +1,5 @@
 from langchain_core.tools import StructuredTool
-from tools.product_tool import ProductTool
+from modular_agentic_ai.tools.product_tool import ProductTool
 
 
 def create_product_tools(tool: ProductTool) -> list[StructuredTool]:

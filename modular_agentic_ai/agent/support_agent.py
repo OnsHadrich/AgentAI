@@ -6,14 +6,14 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 
-from tools.order_tool import OrderTool
-from tools.product_tool import ProductTool
+from modular_agentic_ai.tools.order_tool import OrderTool
+from modular_agentic_ai.tools.product_tool import ProductTool
 from modular_agentic_ai.registery_tool.order_registery import create_order_tools
 from modular_agentic_ai.registery_tool.product_registery_tool import create_product_tools
-from prompt.prompt_builder import build_system_prompt
+from modular_agentic_ai.prompt.prompt_builder import build_system_prompt
 from sessions.session_manager import Session
-from memory.memory_manager import MemoryManager
-from agent.llm_client import LLMClient
+from modular_agentic_ai.memory.memory_manager import MemoryManager
+from modular_agentic_ai.agent.llm_client import LLMClient
 from core.config import Configs
 
 configs = Configs()

@@ -1,6 +1,6 @@
 from langchain_core.tools import StructuredTool
 from schema.order_schema import OrderInput,UpdateQuantityInput
-from tools.order_tool import OrderTool
+from modular_agentic_ai.tools.order_tool import OrderTool
 
 
 def create_order_tools(tool: OrderTool) -> list[StructuredTool]:
