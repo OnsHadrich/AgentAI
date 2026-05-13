@@ -6,7 +6,6 @@ from typing import Literal
 
 class ChatRequest(BaseModel):
     message: str
-    conversation_id: str
 
 
 class ChatResponse(BaseModel):
