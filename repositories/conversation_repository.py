@@ -1,8 +1,7 @@
-import json
 import uuid
 from model.conversation import Conversation, Message, Role
 from modular_agentic_ai.memory.conversation_store import ConversationStore
-
+from typing import cast, Coroutine, Any
 
 class ConversationRepository:
     def __init__(self, store: ConversationStore | None = None):
@@ -43,7 +42,7 @@ class ConversationRepository:
             user_id=meta["user_id"],
             created_at=meta.get("created_at", ""),
             messages=messages,
-            summary=summary
+            summary= cast(str, summary)
         )
 
     def exists(self, conversation_id: str) -> bool:
@@ -54,9 +53,9 @@ class ConversationRepository:
         """Get raw history formatted for LLM — used by agent service."""
         return self.store.get_history(conversation_id)
 
-    def get_summary(self, conversation_id: str) -> str | None:
+    async def get_summary(self, conversation_id: str) -> str | None:
         """Get the current summary if it exists."""
-        return self.store.get_summary(conversation_id)
+        return await self.store.get_summary(conversation_id)
 
     # ── Write ─────────────────────────────────────────────
     def append_message(self, conversation_id: str, role: Role, content: str) -> Message:
@@ -65,28 +64,26 @@ class ConversationRepository:
         self.store.append_message(
             conversation_id,
             role=role.value,
-            content=content,
-            created_at=message.created_at       # store timestamp too
+            content=content
         )
         return message
 
-    def save_summary(self, conversation_id: str, summary: str):
+    async def save_summary(self, conversation_id: str, summary: str):
         """Persist a summary after compression."""
-        self.store.save_summary(conversation_id, summary)
+        await self.store.save_summary(conversation_id, summary)
 
     # ── Delete ────────────────────────────────────────────
-    def delete(self, conversation_id: str):
+    async def delete(self, conversation_id: str):
         """Delete full conversation from Redis."""
-        self.store.delete_conversation(conversation_id)
+        await self.store.delete_conversation(conversation_id)
 
     # ── List ──────────────────────────────────────────────
-    def get_all_by_user(self, user_id: str) -> list[str]:
-        """
-        Get all conversation IDs for a user.
-        Requires a user→conversations index in Redis.
-        """
+
+
+    async def get_all_by_user(self, user_id: str) -> list[str]:
         key = f"user:{user_id}:conversations"
-        return self.store.client.lrange(key, 0, -1)
+        result = await cast(Coroutine[Any, Any, list[str]], self.store.client.lrange(key, 0, -1))
+        return result or []
 
     def register_to_user(self, user_id: str, conversation_id: str):
         """Index conversation under the user for lookup."""
