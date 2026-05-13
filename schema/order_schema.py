@@ -27,3 +27,6 @@ class OrderCreateRequest(BaseModel):
 
 class OrderActionRequest(BaseModel):
     order_id: str
+class UpdateQuantityInput(BaseModel):
+    order_id: str
+    quantity: int = Field(..., description="New quantity for the order, must be 1 or more")
