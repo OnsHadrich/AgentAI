@@ -31,6 +31,7 @@ class SignInResponse(BaseModel):
     user_id: str
     user_name: str
     tier: str
+    message: str
 
 class SignOutResponse(BaseModel):
     message: str
