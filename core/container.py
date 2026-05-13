@@ -1,5 +1,7 @@
 from dependency_injector import containers, providers
 
+from services.user_service import UserService
+
 from .config import Configs
 
 # repositories
@@ -13,11 +15,12 @@ from services.auth_service import AuthService
 from services.agent_service import AgentService
 
 # agent
-from agent.llm_client import LLMClient
-from agent.prompt_builder import PromptBuilder
+from modular_agentic_ai.agent.llm_client import LLMClient
+from modular_agentic_ai.prompt.prompt_builder import build_system_prompt
 
 # tools
-from modular_agentic_ai.tools.order_tool import 
+from modular_agentic_ai.tools.order_tool import  OrderTool 
+from modular_agentic_ai.tools.product_tool import ProductTool
 
 # sessions
 from sessions.session_manager import SessionManager
@@ -62,14 +65,18 @@ class Container(containers.DeclarativeContainer):
         model=Configs().LLM_MODEL,
         max_tokens=Configs().LLM_MAX_TOKENS
     )
-    prompt_builder = providers.Singleton(PromptBuilder)
+    prompt_builder = providers.Singleton(build_system_prompt)
 
     # ── Tools (Factory — fresh per request) ───────────────
     order_tool = providers.Factory(
         OrderTool,
         repo=order_repository
     )
- 
+    product_tool = providers.Factory(
+        ProductTool,
+        repo=product_repository
+    )
+
     # ── Services (Factory — fresh per request) ────────────
     auth_service = providers.Factory(
         AuthService,
@@ -87,4 +94,5 @@ class Container(containers.DeclarativeContainer):
         llm_client=llm_client,
         prompt_builder=prompt_builder,
         order_tool=order_tool,
+        product_tool=product_tool,
     )
