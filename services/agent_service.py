@@ -1,8 +1,8 @@
 from repositories.conversation_repository import ConversationRepository
 from repositories.user_repository import UserRepository
-from model.conversation import Role
-from agent. import chat
-from modular_agentic_ai.prompt.prompt_builder import build_system_prompt
+from modular_agentic_ai.agent.support_agent import run_agent, memory_manager
+from sessions.session_manager import Session
+
 
 class AgentService:
     def __init__(self):
@@ -12,26 +12,32 @@ class AgentService:
     def start_conversation(self, user_id: str) -> str:
         """Creates a new conversation, returns conversation_id."""
         conv = self.conv_repo.create(user_id)
+
+        memory_manager.init_conversation(
+            conversation_id=conv.conversation_id,
+            user_id=user_id
+        )
+
         return conv.conversation_id
 
-    def reply(self, user_id: str, conversation_id: str, user_message: str) -> str:
-        """Process user message and return AI response."""
-        # 1. get user context
+    async def reply(
+        self,
+        user_id: str,
+        conversation_id: str,
+        user_message: str
+    ) -> str:
+        """Process user message through the full agent pipeline."""
+
+        # ── Step 1: get user ──────────────────────────────
         user = self.user_repo.find_by_id(user_id)
         if not user:
-            raise ValueError("User not found.")
+            raise ValueError(f"User '{user_id}' not found.")
 
-        # 2. save user message
-        self.conv_repo.append_message(conversation_id, Role.USER, user_message)
+        # ── Step 2: build session ─────────────────────────
+        session = Session(user=user)
+        session.conversation_id = conversation_id
 
-        # 3. build prompt + history
-        system_prompt = build_system_prompt(user)
-        history = self.conv_repo.get_history(conversation_id)
+        # ── Step 3: run agent (handles memory + tools + LLM)
+        reply = await run_agent(session, user_message)
 
-        # 4. call LLM
-        ai_response = chat(system_prompt, history, user_message)
-
-        # 5. save AI response
-        self.conv_repo.append_message(conversation_id, Role.ASSISTANT, ai_response)
-
-        return ai_response
+        return reply
