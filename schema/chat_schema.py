@@ -5,13 +5,15 @@ from typing import Literal
 
 
 class ChatRequest(BaseModel):
-    message: str               
+    message: str
+    conversation_id: str
 
 
 class ChatResponse(BaseModel):
     user_id: str
     user_name: str
     response: str
+    conversation_id: str 
 
 
 class SessionInfo(BaseModel):
