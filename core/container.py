@@ -17,7 +17,7 @@ from agent.llm_client import LLMClient
 from agent.prompt_builder import PromptBuilder
 
 # tools
-from tools.order_tool import 
+from modular_agentic_ai.tools.order_tool import 
 
 # sessions
 from sessions.session_manager import SessionManager
@@ -76,6 +76,10 @@ class Container(containers.DeclarativeContainer):
         user_repository=user_repository,
         session_manager=session_manager
     )
+    user_service = providers.Factory(
+        UserService,
+        user_repository=user_repository
+    )
     agent_service = providers.Factory(
         AgentService,
         user_repository=user_repository,
@@ -83,5 +87,4 @@ class Container(containers.DeclarativeContainer):
         llm_client=llm_client,
         prompt_builder=prompt_builder,
         order_tool=order_tool,
-        refund_tool=refund_tool
     )
