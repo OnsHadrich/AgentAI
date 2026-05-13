@@ -31,7 +31,7 @@ class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         modules=[
             "api.routes.auth",
-            "api.routes.agent",
+            "api.routes.chat",
         ]
     )
 
