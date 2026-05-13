@@ -1,101 +1,103 @@
-from dotenv import load_dotenv
-load_dotenv()
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
-import json
-import os
-from sessions.session_manager import SessionManager
-from modular_agentic_ai.agent.support_agent import create_agent
-
-with open("data/users.json") as f:
-    USERS = json.load(f)
+from core.container import Container
+from api.routes import auth, chat, orders, products
+from modular_agentic_ai.memory.conversation_store import ConversationStore
 
 
-def find_user(email: str) -> dict | None:
-    for user in USERS:
-        if user["email"].lower() == email.lower():
-            return user
-    return None
+# ── Lifespan (startup + shutdown) ─────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Runs on startup and shutdown.
+    Use for: DB connections, Redis, loading models, etc.
+    """
+    # ── Startup ───────────────────────────────────────────
+    print("Starting ShopAI Support API...")
+
+    # verify Redis connection
+    store = ConversationStore()
+    try:
+        store.client.ping()
+        print("Redis connected ✓")
+    except Exception as e:
+        print(f"Redis connection failed: {e}")
+
+    yield  # ← app runs here
+
+    # ── Shutdown ──────────────────────────────────────────
+    print("Shutting down ShopAI Support API...")
+    await store.close()
+    print("Redis connection closed ✓")
 
 
-def chat_loop(session, agent):
-    print(f"\nWelcome, {session.user_name}! Type 'quit' to logout, 'info' to see session info.\n")
+# ── App factory ───────────────────────────────────────────
+def create_app() -> FastAPI:
 
-    while True:
-        user_input = input(f"[{session.user_name}] You: ").strip()
-        if not user_input: continue
-        if user_input.lower() == "quit": break
-        if user_input.lower() == "info":
-            print(f"\n{session.summary()}\n")
-            continue
+    # ── DI Container ──────────────────────────────────────
+    container = Container()
+    container.wire(modules=[
+        "api.routes.auth",
+        "api.routes.chat",
+        "api.routes.orders",
+        "api.routes.products",
+        "core.dependencies",
+    ])
 
-        session.touch()
+    # ── FastAPI app ────────────────────────────────────────
+    app = FastAPI(
+        title="ShopAI Customer Support API",
+        description="Agentic AI customer support powered by LangChain + Groq + Redis",
+        version="1.0.0",
+        lifespan=lifespan,
+        docs_url="/docs",        # Swagger UI
+        redoc_url="/redoc",      # ReDoc UI
+    )
 
+    app.state.container = container
+
+    # ── CORS ──────────────────────────────────────────────
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],     # restrict to frontend URL in production
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # ── Routes ────────────────────────────────────────────
+    app.include_router(auth.router)
+    app.include_router(chat.router)
+    app.include_router(orders.router)
+    app.include_router(products.router)
+
+    # ── Base endpoints ────────────────────────────────────
+    @app.get("/", tags=["Health"])
+    def root():
+        return {
+            "app": "ShopAI Customer Support API",
+            "status": "running",
+            "docs": "/docs",
+        }
+
+    @app.get("/health", tags=["Health"])
+    async def health():
+        """Check API and Redis health."""
+        store = ConversationStore()
         try:
-            # ✅ LangGraph v1 format
-            result = agent.invoke(
-                {"messages": [("user", user_input)]},
-                config={"configurable": {"thread_id": f"{session.user_id}-clean"}} # keeps history per user
-            )
-            
-            # Get the last AI message (no tool calls shown)
-            last_message = result["messages"][-1]
-            print(f"\nAgent: {last_message.content}\n")
+            store.client.ping()
+            redis_status = "connected"
+        except Exception:
+            redis_status = "disconnected"
 
-        except Exception as e:
-            print(f"\n[Error] {e}\n")
+        return {
+            "api": "ok",
+            "redis": redis_status,
+        }
 
-
-def main():
-    session_manager = SessionManager()
-
-    print("=" * 40)
-    print("   ShopAI Customer Support")
-    print("=" * 40)
-
-    while True:
-        print("\nOptions:")
-        print("  1. Login")
-        print("  2. List active sessions")
-        print("  3. Exit")
-
-        choice = input("\nChoose: ").strip()
-
-        if choice == "1":
-            email = input("Enter your email: ").strip()
-            user = find_user(email)
-
-            if not user:
-                print(f"No user found. Try: alice@example.com or bob@example.com")
-                continue
-
-            session = session_manager.get_session(user["user_id"])
-
-            if session:
-                print(f"[Session] Resuming existing session for {session.user_name}")
-            else:
-                session = session_manager.create_session(
-                    user_id=user["user_id"],
-                    user_name=user["name"],
-                    tier=user["tier"]
-                )
-
-            agent = create_agent(session)   # ← now returns single chain, not tuple
-            chat_loop(session, agent)
-
-            keep = input("Keep session alive for later? (y/n): ").strip().lower()
-            if keep != "y":
-                session_manager.end_session(user["user_id"])
-
-        elif choice == "2":
-            session_manager.list_sessions()
-
-        elif choice == "3":
-            print("Shutting down. Goodbye!")
-            break
-
-        else:
-            print("Invalid choice. Enter 1, 2, or 3.")
+    return app
 
 
-if __name__ == "__main__":
-    main()
+app = create_app()
