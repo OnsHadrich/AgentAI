@@ -7,6 +7,7 @@ from model.user_model import User
 
 class Session:
     def __init__(self,user :User):
+        self.user = user
         self.user_id = user.user_id
         self.user_name = user.name
         self.tier = user.tier
