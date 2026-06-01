@@ -17,19 +17,23 @@ class LLMClient:
     def __init__(
         self,
         model: str | None = None,
+        api_key: str | None = None,
         temperature: float = 0,
-        api_key: SecretStr | None = None,
+        max_tokens: int | None = None,
     ):
         self.model = model or configs.LLM_MODEL
         self.api_key = api_key or configs.GROQ_API_KEY
+        self.temperature = temperature
+        self.max_tokens = max_tokens or configs.LLM_MAX_TOKENS
 
         if not self.api_key:
             raise ValueError("GROQ_API_KEY is missing. Check your .env file.")
 
         self.llm = ChatGroq(
             model=self.model,
-            temperature=temperature,
-            api_key=cast(SecretStr, self.api_key) if self.api_key else None,
+            temperature=self.temperature,
+            api_key=cast(SecretStr, self.api_key),
+            max_tokens=self.max_tokens,
         )
 
     def invoke(self, prompt: str) -> str:
