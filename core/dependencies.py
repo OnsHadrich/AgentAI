@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from core.config import Configs
 from core.container import Container
 from core.exceptions import AuthError
-from core.security import  JWTBearer
+from core.security_old import  JWTBearer
 from model.user_model import User
 from schema.auth_schema import Payload
 from services.user_service import UserService
