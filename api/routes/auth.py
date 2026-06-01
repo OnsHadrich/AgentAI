@@ -21,10 +21,6 @@ user_repo = UserRepository()
 
 
 
-
-router = APIRouter(prefix="/auth", tags=["Auth"])
-
-
 @router.post("/signin", response_model=SignInResponse)
 @inject
 def sign_in(
@@ -73,7 +69,7 @@ async def sign_out(
     session_manager: SessionManager = Depends(Provide[Container.session_manager])
 ):
     """Logout — blacklist token and end session."""
-    await blacklist_token(current_user["token"])  # blacklist current token
+    blacklist_token(current_user["token"])  # blacklist current token
     session_manager.end_session(current_user["user_id"])
     return {"message": f"Logged out successfully."}
 
