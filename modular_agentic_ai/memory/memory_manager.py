@@ -27,13 +27,9 @@ class MemoryManager:
 
     def get_context(self, conversation_id: str) -> str:
         """Plain string context for injecting into system prompt."""
-        summary = self.store.get_summary(conversation_id)
         history = self.store.get_history(conversation_id)
 
         parts = []
-
-        if summary:
-            parts.append(f"[Previous Summary]\n{summary}")
 
         if history:
             parts.append("[Recent Messages]")
@@ -48,33 +44,20 @@ class MemoryManager:
         return self.store.get_history(conversation_id)
 
     def build_context(self, conversation_id: str) -> list[dict]:
-        """Full message list: summary block + recent messages."""
-        messages = []
-
-        summary = self.store.get_summary(conversation_id)
-        if summary:
-            messages.append({
-                "role": "user",
-                "content": f"[Conversation summary so far]: {summary}"
-            })
-            messages.append({
-                "role": "assistant",
-                "content": "Understood, I have context from our previous discussion."
-            })
-
-        messages += self.store.get_history(conversation_id)
+        """Full message list: recent messages only."""
+        messages = self.store.get_history(conversation_id)
         return messages
 
     # ── Summarization ─────────────────────────────────────
 
     def should_summarize(self, conversation_id: str) -> bool:
-        count =  self.store.get_message_count(conversation_id)
+        count = self.store.get_message_count(conversation_id)
         return count >= self.SUMMARY_THRESHOLD
 
     async def summarize(self, conversation_id: str) -> None:
         """Compress old history into a summary, keep only last 4 messages."""
-        history =  self.store.get_history(conversation_id)
-        existing = await self.store.get_summary(conversation_id)
+        history = self.store.get_history(conversation_id)
+        existing = self.store.get_summary(conversation_id)
 
         to_summarize = history[:-4]
         to_keep = history[-4:]
@@ -91,9 +74,9 @@ class MemoryManager:
         New messages:
         {self._format(to_summarize)}
         """
-        new_summary = self.llm.invoke(prompt)   # LLMClient.invoke() is sync, returns str
+        new_summary = self.llm.invoke(prompt)
 
-        await self.store.save_summary(conversation_id, new_summary)
+        self.store.save_summary(conversation_id, new_summary)
         self.store.reset_history(
             conversation_id=conversation_id,
             messages=to_keep
@@ -106,16 +89,13 @@ class MemoryManager:
 
     # ── Meta ──────────────────────────────────────────────
 
-    def init_conversation(self, conversation_id: str, user_id: str) -> None:
+    async def init_conversation(self, conversation_id: str, user_id: str) -> None:
         existing = self.store.get_meta(conversation_id)
         if not existing:
             self.store.save_meta(conversation_id, user_id)
 
-    def get_conversation_meta(self, conversation_id: str) -> dict | None:
-        return  self.store.get_meta(conversation_id)
-
     async def delete_conversation(self, conversation_id: str) -> None:
-        await self.store.delete_conversation(conversation_id)
+        self.store.delete_conversation(conversation_id)
 
     # ── Helpers ───────────────────────────────────────────
 
