@@ -1,4 +1,3 @@
-# api/schemas.py
 from pydantic import BaseModel, EmailStr
 
 # What the CLIENT SENDS
