@@ -1,4 +1,32 @@
 [
-  { "user_id": "u1", "name": "Alice", "email": "alice@example.com", "password_hash": "hashed_password1", "tier": "premium" },
-  { "user_id": "u2", "name": "Bob",   "email": "bob@example.com",   "password_hash": "hashed_password2", "tier": "standard" }
+  {
+    "user_id": "u1",
+    "name": "Alice",
+    "email": "alice@example.com",
+    "password": "alice123",
+    "password_hash": "hashed_password1",
+    "tier": "premium",
+    "is_active": true,
+    "is_superuser": false
+  },
+  {
+    "user_id": "u2",
+    "name": "Bob",
+    "email": "bob@example.com",
+    "password": "bob123",
+    "password_hash": "hashed_password2",
+    "tier": "standard",
+    "is_active": true,
+    "is_superuser": false
+  },
+  {
+    "user_id": "2b84e7d6b2504321",
+    "name": "ons",
+    "email": "ons@example.com",
+    "password": "on12365s",
+    "password_hash": "$2b$12$xrrpFL1Oc/T0sW7GSMfPp.ljk7Kws.rv29ea.yWs6qita.a2ge9Ze",
+    "tier": "free",
+    "is_active": true,
+    "is_superuser": false
+  }
 ]
