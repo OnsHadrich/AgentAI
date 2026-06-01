@@ -1,100 +1,146 @@
-import json
-from redis.asyncio import Redis
-from core.config import Configs
-from typing import cast
-configs = Configs()
+from datetime import datetime
+from pymongo import ASCENDING
+from pymongo.collection import Collection
+from database.mongodb import MongoDB
 
 
 class ConversationStore:
-    def __init__(self):
-        self.client: Redis = Redis(
-            host=configs.REDIS_HOST,
-            port=configs.REDIS_PORT,
-            db=configs.REDIS_DB,
-            password=configs.REDIS_PASSWORD,
-            decode_responses=True,
+    MAX_MESSAGES = 20
+
+    def _messages(self) -> Collection:
+        return MongoDB.get_db()["conversation_messages"]
+
+    def _summaries(self) -> Collection:
+        return MongoDB.get_db()["conversation_summaries"]
+
+    def _meta(self) -> Collection:
+        return MongoDB.get_db()["conversation_meta"]
+
+    def create_indexes(self):
+        """Call once on startup to create indexes."""
+        self._messages().create_index([("conversation_id", ASCENDING)])
+        self._summaries().create_index([("conversation_id", ASCENDING)], unique=True)
+        self._meta().create_index([("conversation_id", ASCENDING)], unique=True)
+        self._meta().create_index([("user_id", ASCENDING)])
+        print("MongoDB indexes created ✓")
+
+    # ── Messages ──────────────────────────────────────────
+
+    def append_message(
+        self, conversation_id: str, role: str, content: str
+    ) -> None:
+        """Add a message and trim to MAX_MESSAGES."""
+        self._messages().insert_one({
+            "conversation_id": conversation_id,
+            "role": role,
+            "content": content,
+            "created_at": datetime.utcnow()
+        })
+        self._trim(conversation_id)
+
+    def _trim(self, conversation_id: str) -> None:
+        """Keep only the last MAX_MESSAGES messages."""
+        messages = list(
+            self._messages()
+            .find({"conversation_id": conversation_id})
+            .sort("created_at", ASCENDING)
         )
-        self.MAX_MESSAGES = 20
-        self.TTL = 60 * 60 * 24 * 7
 
-    # Keys
-    def _history_key(self, conversation_id: str) -> str:
-        return f"conversation:{conversation_id}:history"
-
-    def _summary_key(self, conversation_id: str) -> str:
-        return f"conversation:{conversation_id}:summary"
-
-    def _meta_key(self, conversation_id: str) -> str:
-        return f"conversation:{conversation_id}:meta"
-
-    # Messages
-    def append_message(self, conversation_id: str, role: str, content: str) -> None:
-        """Add a message to the conversation history."""
-        key = self._history_key(conversation_id)
-        message = json.dumps({"role": role, "content": content})
-
-        self.client.rpush(key, message)
-        self.client.expire(key, self.TTL)
-        self.client.ltrim(key, -self.MAX_MESSAGES, -1)
+        if len(messages) > self.MAX_MESSAGES:
+            to_delete = messages[:len(messages) - self.MAX_MESSAGES]
+            ids = [m["_id"] for m in to_delete]
+            self._messages().delete_many({"_id": {"$in": ids}})
 
     def get_history(self, conversation_id: str) -> list[dict]:
-        key = self._history_key(conversation_id)
-        messages = self.client.lrange(key, 0, -1)
+        """Get all messages for a conversation."""
+        messages = self._messages().find(
+            {"conversation_id": conversation_id},
+            {"_id": 0, "role": 1, "content": 1}   # ← exclude _id
+        ).sort("created_at", ASCENDING)
 
-        if not messages:
-            return []
-
-        return [json.loads(message) for message in cast(list[str], messages)]
+        return [{"role": m["role"], "content": m["content"]} for m in messages]
 
     def get_message_count(self, conversation_id: str) -> int:
-        key = self._history_key(conversation_id)
-        return cast(int, self.client.llen(key))
+        return self._messages().count_documents(
+            {"conversation_id": conversation_id}
+        )
 
-    # Summary
-    async def save_summary(self, conversation_id: str, summary: str) -> None:
-        """Store a compressed summary of old messages."""
-        key = self._summary_key(conversation_id)
-        await self.client.set(key, summary, ex=self.TTL)
+    def reset_history(
+        self, conversation_id: str, messages: list[dict]
+    ) -> None:
+        """Replace entire history with a new list."""
+        self._messages().delete_many({"conversation_id": conversation_id})
 
-    async def get_summary(self, conversation_id: str) -> str | None:
+        if messages:
+            self._messages().insert_many([
+                {
+                    "conversation_id": conversation_id,
+                    "role": msg["role"],
+                    "content": msg["content"],
+                    "created_at": datetime.utcnow()
+                }
+                for msg in messages
+            ])
+
+    # ── Summary ───────────────────────────────────────────
+
+    def save_summary(self, conversation_id: str, summary: str) -> None:
+        """Store or update the summary."""
+        self._summaries().update_one(
+            {"conversation_id": conversation_id},
+            {
+                "$set": {
+                    "summary": summary,
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            upsert=True   # ← insert if not exists, update if exists
+        )
+
+    def get_summary(self, conversation_id: str) -> str | None:
         """Retrieve the summary if it exists."""
-        return await self.client.get(self._summary_key(conversation_id))
+        doc = self._summaries().find_one(
+            {"conversation_id": conversation_id},
+            {"_id": 0, "summary": 1}
+        )
+        return doc["summary"] if doc else None
 
-    # Meta
+    # ── Meta ──────────────────────────────────────────────
+
     def save_meta(self, conversation_id: str, user_id: str) -> None:
         """Store conversation metadata."""
-        key = self._meta_key(conversation_id)
-        self.client.hset(
-            key,
-            mapping={
-                "user_id": user_id,
-                "conversation_id": conversation_id,
+        self._meta().update_one(
+            {"conversation_id": conversation_id},
+            {
+                "$setOnInsert": {
+                    "conversation_id": conversation_id,
+                    "user_id": user_id,
+                    "created_at": datetime.utcnow()
+                }
             },
+            upsert=True   # ← only insert if not exists
         )
-        self.client.expire(key, self.TTL)
 
     def get_meta(self, conversation_id: str) -> dict | None:
-        key = self._meta_key(conversation_id)
-        meta = self.client.hgetall(key)
-        return cast(dict | None, meta or None)
-
-    # Cleanup
-    async def delete_conversation(self, conversation_id: str) -> None:
-        """Delete all data for a conversation."""
-        await self.client.delete(
-            self._history_key(conversation_id),
-            self._summary_key(conversation_id),
-            self._meta_key(conversation_id),
+        """Retrieve conversation metadata."""
+        doc = self._meta().find_one(
+            {"conversation_id": conversation_id},
+            {"_id": 0}
         )
+        return doc if doc else None
 
-    async def close(self) -> None:
-        await self.client.aclose()
-        
-    def reset_history(self, conversation_id: str, messages: list[dict]) -> None:
-        """Replace history with a new set of messages."""
-        key = self._history_key(conversation_id)
-        self.client.delete(key)
+    def get_all_by_user(self, user_id: str) -> list[str]:
+        """Get all conversation IDs for a user."""
+        docs = self._meta().find(
+            {"user_id": user_id},
+            {"_id": 0, "conversation_id": 1}
+        )
+        return [d["conversation_id"] for d in docs]
 
-        for msg in messages:
-            self.append_message(conversation_id, msg["role"], msg["content"])
-            
+    # ── Cleanup ───────────────────────────────────────────
+
+    def delete_conversation(self, conversation_id: str) -> None:
+        """Delete all data for a conversation."""
+        self._messages().delete_many({"conversation_id": conversation_id})
+        self._summaries().delete_many({"conversation_id": conversation_id})
+        self._meta().delete_many({"conversation_id": conversation_id})
