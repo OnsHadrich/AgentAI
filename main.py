@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from core.container import Container
 from api.routes import auth, chat, orders, products
+from database.mongodb import MongoDB
 from modular_agentic_ai.memory.conversation_store import ConversationStore
 
 
@@ -12,25 +13,24 @@ from modular_agentic_ai.memory.conversation_store import ConversationStore
 async def lifespan(app: FastAPI):
     """
     Runs on startup and shutdown.
-    Use for: DB connections, Redis, loading models, etc.
     """
     # ── Startup ───────────────────────────────────────────
     print("Starting ShopAI Support API...")
 
-    # verify Redis connection
-    store = ConversationStore()
     try:
-        store.client.ping()
-        print("Redis connected ✓")
+        MongoDB.connect()
+        store = ConversationStore()
+        store.create_indexes()
+        print("MongoDB connected ✓")
     except Exception as e:
-        print(f"Redis connection failed: {e}")
+        print(f"MongoDB connection failed: {e}")
 
     yield  # ← app runs here
 
     # ── Shutdown ──────────────────────────────────────────
     print("Shutting down ShopAI Support API...")
-    await store.close()
-    print("Redis connection closed ✓")
+    MongoDB.close()
+    print("MongoDB connection closed ✓")
 
 
 # ── App factory ───────────────────────────────────────────
@@ -49,11 +49,12 @@ def create_app() -> FastAPI:
     # ── FastAPI app ────────────────────────────────────────
     app = FastAPI(
         title="ShopAI Customer Support API",
-        description="Agentic AI customer support powered by LangChain + Groq + Redis",
+        description="Agentic AI customer support powered by LangChain + Groq + MongoDB",
+        redirect_slashes=False,
         version="1.0.0",
         lifespan=lifespan,
-        docs_url="/docs",        # Swagger UI
-        redoc_url="/redoc",      # ReDoc UI
+        docs_url="/docs",
+        redoc_url="/redoc",
     )
 
     app.state.container = container
@@ -61,17 +62,17 @@ def create_app() -> FastAPI:
     # ── CORS ──────────────────────────────────────────────
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],     # restrict to frontend URL in production
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     # ── Routes ────────────────────────────────────────────
-    app.include_router(auth.router)
-    app.include_router(chat.router)
-    app.include_router(orders.router)
-    app.include_router(products.router)
+    app.include_router(auth.router,     prefix="/api/v1")
+    app.include_router(chat.router,     prefix="/api/v1")
+    app.include_router(orders.router,   prefix="/api/v1")
+    app.include_router(products.router, prefix="/api/v1")
 
     # ── Base endpoints ────────────────────────────────────
     @app.get("/", tags=["Health"])
@@ -83,18 +84,17 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/health", tags=["Health"])
-    async def health():
-        """Check API and Redis health."""
-        store = ConversationStore()
+    def health():
+        """Check API and MongoDB health."""
         try:
-            store.client.ping()
-            redis_status = "connected"
+            MongoDB.get_client().admin.command("ping")
+            mongo_status = "connected"
         except Exception:
-            redis_status = "disconnected"
+            mongo_status = "disconnected"
 
         return {
             "api": "ok",
-            "redis": redis_status,
+            "mongodb": mongo_status,
         }
 
     return app
