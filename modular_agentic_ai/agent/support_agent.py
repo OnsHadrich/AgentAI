@@ -1,9 +1,6 @@
 import asyncio
-from pathlib import Path
-from dotenv import load_dotenv
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 
 from modular_agentic_ai.tools.order_tool import OrderTool
@@ -14,17 +11,15 @@ from modular_agentic_ai.prompt.prompt_builder import build_system_prompt
 from sessions.session_manager import Session
 from modular_agentic_ai.memory.memory_manager import MemoryManager
 from modular_agentic_ai.agent.llm_client import LLMClient
-from core.config import Configs
 
-configs = Configs()
 memory_manager = MemoryManager()
 llm_client = LLMClient()
 
 
 async def _build_chat_history(conversation_id: str) -> ChatMessageHistory:
-    """Load history from Redis and return as LangChain ChatMessageHistory."""
+    """Load history from MongoDB and return as LangChain ChatMessageHistory."""
     chat_history = ChatMessageHistory()
-    messages = memory_manager.build_langchain_messages(conversation_id)  # ← await
+    messages = memory_manager.build_langchain_messages(conversation_id)
 
     for msg in messages:
         if msg["role"] == "user":
@@ -44,60 +39,65 @@ def _build_tools() -> list:
     ]
 
 
-async def create_agent(session: Session) -> RunnableWithMessageHistory:
-    """Create an agent bound to a specific user session with Redis memory."""
+async def create_support_agent(session: Session):
+    """Create an agent bound to a specific user session with MongoDB memory."""
 
-    memory_manager.init_conversation(          # ← await
+    await memory_manager.init_conversation(
         conversation_id=session.conversation_id,
         user_id=session.user_id
     )
 
     tools = _build_tools()
-    memory_context = memory_manager.get_context(session.conversation_id)  # ← await
+    memory_context = memory_manager.get_context(session.conversation_id)
 
     system_prompt = build_system_prompt(
         user=session.user,
         memory_context=memory_context
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-        MessagesPlaceholder("agent_scratchpad")
-    ])
-
-    llm_with_tools = llm_client.bind_tools(tools)   # ← use LLMClient
-
-    # pre-load history for this session
-    chat_history = await _build_chat_history(session.conversation_id)
-
-    chain = RunnableWithMessageHistory(
-        llm_with_tools,
-        lambda session_id: chat_history,            # ← pre-loaded, no async lambda needed
-        input_messages_key="input",
-        history_messages_key="chat_history",
+    return create_agent(
+        model=llm_client.raw,
+        tools=tools,
+        system_prompt=system_prompt,
     )
 
-    return chain
+
+def _extract_reply(response) -> str:
+    if isinstance(response, dict):
+        output = response.get("output")
+        if output:
+            return str(output)
+
+        messages = response.get("messages")
+        if isinstance(messages, list):
+            for message in reversed(messages):
+                if isinstance(message, AIMessage) and message.content:
+                    content = message.content
+                    return content if isinstance(content, str) else str(content)
+
+    content = getattr(response, "content", None)
+    if content:
+        return content if isinstance(content, str) else str(content)
+
+    return str(response)
 
 
 async def run_agent(session: Session, user_input: str) -> str:
     """Run the agent, persist messages, trigger summarization."""
-    agent = await create_agent(session)             # ← await
+    agent = await create_support_agent(session)
+    chat_history = await _build_chat_history(session.conversation_id)
 
-    memory_manager.add_user_message(          # ← await
+    memory_manager.add_user_message(
         session.conversation_id, user_input
     )
 
     response = agent.invoke(
-        {"input": user_input},
-        config={"configurable": {"session_id": session.conversation_id}}
+        {"messages": [*chat_history.messages, HumanMessage(content=user_input)]}
     )
 
-    reply = response.content
+    reply = _extract_reply(response)
 
-    memory_manager.add_assistant_message(     
+    memory_manager.add_assistant_message(
         session.conversation_id, reply
     )
 
