@@ -6,18 +6,21 @@ from core.security import create_access_token
 from core.exceptions import AuthError
 from core.config import Configs
 from datetime import timedelta
+from sessions.session_manager import SessionManager
+from sessions.session_manager import SessionManager
 from utils.hash import get_rand_hash
 from typing import Tuple
-
 from schema.user_schema import RegisterResponse
 
 configs = Configs()
 
 class AuthService:
-    def __init__(self, user_repository: UserRepository | None = None):
+    def __init__(self, user_repository: UserRepository | None = None, session_manager: SessionManager | None = None):
         self.user_repository = user_repository or UserRepository()
+        self.session_manager = session_manager or SessionManager()
 
     def sign_in(self, sign_in_info: SignIn) -> Tuple[SignInResponse, User]:
+        print(f"[AuthService] Attempting sign in for {sign_in_info}")
         user = self.user_repository.find_by_email(sign_in_info.email)
 
         if not user:
@@ -26,7 +29,7 @@ class AuthService:
             raise AuthError(detail="Account is not active")
         if not bcrypt.checkpw(
             sign_in_info.password.encode(),
-            user.password_hash.encode()     # ← password_hash, not password
+            user.password_hash.encode()     
         ):
             raise AuthError(detail="Incorrect email or password")
 
@@ -60,6 +63,7 @@ class AuthService:
                 user_id=get_rand_hash(),
                 name=sign_up_info.name,
                 email=sign_up_info.email,
+                password=sign_up_info.password,  # ← for creation only, not stored
                 password_hash=bcrypt.hashpw(sign_up_info.password.encode(), bcrypt.gensalt()).decode(),
                 tier=sign_up_info.tier,
                 is_active=True,
