@@ -1,7 +1,7 @@
 from dataclasses import asdict
 import json
+from json import JSONDecodeError
 
-from attrs import asdict
 from core.config import Configs
 from model.order_model import Order
 from utils.hash import get_rand_hash
@@ -11,9 +11,12 @@ from utils.hash import get_rand_hash
 class OrderRepository:
     def __init__(self, filepath: str | None = None, configs: Configs = Configs()):
         self._filepath = filepath or str(configs.ORDERS_FILE)
-        with open(self._filepath) as f:
-            raw = json.load(f)
-        self._orders: list[Order] = [Order(**o) for o in raw]
+        try:
+            with open(self._filepath) as f:
+                raw = json.load(f)
+        except JSONDecodeError:
+            raw = []
+        self._orders: list[Order] = [Order(**order) for order in raw]
         
     # ── persistence ───────────────────────────────────────
     def _save(self):
@@ -37,9 +40,8 @@ class OrderRepository:
         return self._orders
 
     def create_order(self, data_order: Order) -> Order:
-        order_id = get_rand_hash()
         new_order = Order(
-            order_id= str(order_id),
+            order_id=data_order.order_id or str(get_rand_hash()),
             user_id=data_order.user_id,
             product_id=data_order.product_id,
             quantity=data_order.quantity,
@@ -57,8 +59,8 @@ class OrderRepository:
         if not order:
             return None
         
-        if status not in ["pending", "shipped", "delivered", "cancelled"]:
-            raise ValueError(f"Invalid status: {status}. Must be one of pending, shipped, delivered, cancelled.")
+        if status not in ["processing", "shipped", "delivered", "cancelled"]:
+            raise ValueError(f"Invalid status: {status}. Must be one of processing, shipped, delivered, cancelled.")
         
         order.status = status
         with open(self._filepath, "w") as f:

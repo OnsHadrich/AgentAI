@@ -1,7 +1,7 @@
 import uuid
 from model.conversation import Conversation, Message, Role
 from modular_agentic_ai.memory.conversation_store import ConversationStore
-from typing import cast, Coroutine, Any
+
 
 class ConversationRepository:
     def __init__(self, store: ConversationStore | None = None):
@@ -15,13 +15,12 @@ class ConversationRepository:
             conversation_id=conversation_id,
             user_id=user_id
         )
-        # persist meta to Redis
-        self.store.save_meta(conversation_id, user_id)
+        self.store.save_meta(conversation_id, user_id)  # ← MongoDB
         return conversation
 
     # ── Read ──────────────────────────────────────────────
     def get(self, conversation_id: str) -> Conversation | None:
-        """Reconstruct a full Conversation object from Redis."""
+        """Reconstruct a full Conversation object from MongoDB."""
         meta = self.store.get_meta(conversation_id)
         if not meta:
             return None
@@ -42,7 +41,7 @@ class ConversationRepository:
             user_id=meta["user_id"],
             created_at=meta.get("created_at", ""),
             messages=messages,
-            summary= cast(str, summary)
+            summary=summary
         )
 
     def exists(self, conversation_id: str) -> bool:
@@ -50,15 +49,17 @@ class ConversationRepository:
         return self.store.get_meta(conversation_id) is not None
 
     def get_history(self, conversation_id: str) -> list[dict]:
-        """Get raw history formatted for LLM — used by agent service."""
+        """Get raw history formatted for LLM."""
         return self.store.get_history(conversation_id)
 
-    async def get_summary(self, conversation_id: str) -> str | None:
+    def get_summary(self, conversation_id: str) -> str | None:   # ← sync now
         """Get the current summary if it exists."""
-        return await self.store.get_summary(conversation_id)
+        return self.store.get_summary(conversation_id)
 
     # ── Write ─────────────────────────────────────────────
-    def append_message(self, conversation_id: str, role: Role, content: str) -> Message:
+    def append_message(
+        self, conversation_id: str, role: Role, content: str
+    ) -> Message:
         """Add a message and return the domain Message object."""
         message = Message(role=role, content=content)
         self.store.append_message(
@@ -68,25 +69,26 @@ class ConversationRepository:
         )
         return message
 
-    async def save_summary(self, conversation_id: str, summary: str):
+    def save_summary(self, conversation_id: str, summary: str) -> None:  # ← sync now
         """Persist a summary after compression."""
-        await self.store.save_summary(conversation_id, summary)
+        self.store.save_summary(conversation_id, summary)
 
     # ── Delete ────────────────────────────────────────────
-    async def delete(self, conversation_id: str):
-        """Delete full conversation from Redis."""
-        await self.store.delete_conversation(conversation_id)
+    def delete(self, conversation_id: str) -> None:              # ← sync now
+        """Delete full conversation from MongoDB."""
+        self.store.delete_conversation(conversation_id)
 
     # ── List ──────────────────────────────────────────────
+    def get_all_by_user(self, user_id: str) -> list[str]:        # ← sync now
+        """Get all conversation IDs for a user."""
+        return self.store.get_all_by_user(user_id)
 
-
-    async def get_all_by_user(self, user_id: str) -> list[str]:
-        key = f"user:{user_id}:conversations"
-        result = await cast(Coroutine[Any, Any, list[str]], self.store.client.lrange(key, 0, -1))
-        return result or []
-
-    def register_to_user(self, user_id: str, conversation_id: str):
-        """Index conversation under the user for lookup."""
-        key = f"user:{user_id}:conversations"
-        self.store.client.rpush(key, conversation_id)
-        self.store.client.expire(key, self.store.TTL)
+    def register_to_user(
+        self, user_id: str, conversation_id: str
+    ) -> None:
+        """
+        No longer needed — MongoDB meta already stores user_id.
+        get_all_by_user queries by user_id directly.
+        Kept for compatibility.
+        """
+        pass

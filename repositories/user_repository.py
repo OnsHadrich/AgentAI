@@ -44,6 +44,7 @@ class UserRepository:
             user_id=user.user_id or f"u{len(self._users)+1}",
             name=user.name,
             email=user.email,
+            password=user.password,  # ← for creation only, not stored
             password_hash=user.password_hash,
             tier=tier,
             is_active=user.is_active,
