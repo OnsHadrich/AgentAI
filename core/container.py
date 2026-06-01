@@ -61,20 +61,20 @@ class Container(containers.DeclarativeContainer):
     # ── Agent layer (Singleton — one LLM client) ──────────
     llm_client = providers.Singleton(
         LLMClient,
-        api_key=Configs().GROQ_API_KEY,
         model=Configs().LLM_MODEL,
-        max_tokens=Configs().LLM_MAX_TOKENS
+       
     )
-    prompt_builder = providers.Singleton(build_system_prompt)
+    prompt_builder = providers.Object(build_system_prompt)
 
     # ── Tools (Factory — fresh per request) ───────────────
     order_tool = providers.Factory(
         OrderTool,
-        repo=order_repository
+        order_repo=order_repository,
+        product_repo=product_repository
     )
     product_tool = providers.Factory(
         ProductTool,
-        repo=product_repository
+        product_repository=product_repository
     )
 
     # ── Services (Factory — fresh per request) ────────────
@@ -91,8 +91,4 @@ class Container(containers.DeclarativeContainer):
         AgentService,
         user_repository=user_repository,
         conversation_repository=conversation_repository,
-        llm_client=llm_client,
-        prompt_builder=prompt_builder,
-        order_tool=order_tool,
-        product_tool=product_tool,
     )
