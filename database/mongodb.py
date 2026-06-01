@@ -22,7 +22,17 @@ class MongoDB:
             print("MongoDB connection closed ✓")
 
     @classmethod
-    def get_db(cls) -> Database | None:
+    def get_client(cls) -> MongoClient:
+        if cls.client is None:
+            cls.connect()
+        if cls.client is None:
+            raise RuntimeError("MongoDB client was not initialized")
+        return cls.client
+
+    @classmethod
+    def get_db(cls) -> Database:
         if cls.db is None:
             cls.connect()
+        if cls.db is None:
+            raise RuntimeError("MongoDB connection was not initialized")
         return cls.db
