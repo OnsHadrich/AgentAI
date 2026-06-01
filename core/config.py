@@ -41,10 +41,13 @@ class Configs(BaseSettings):
     JWT_EXPIRE_MINUTES: int = env_int("JWT_EXPIRE_MINUTES", 60)
     
     # ── Redis ─────────────────────────────────────────────
-    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
-    REDIS_PORT: int = env_int("REDIS_PORT", 6379)
-    REDIS_DB: int = env_int("REDIS_DB", 0)
-    REDIS_PASSWORD: str | None = os.getenv("REDIS_PASSWORD", None)
+    # REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    # REDIS_PORT: int = env_int("REDIS_PORT", 6379)
+    # REDIS_DB: int = env_int("REDIS_DB", 0)
+    # REDIS_PASSWORD: str | None = os.getenv("REDIS_PASSWORD", None)
+    # add these fields to your existing Configs class
+    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_DB: str = "shopai_support"
     
     # ── AI ────────────────────────────────────────────────
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
@@ -60,13 +63,11 @@ class Configs(BaseSettings):
     ORDERS_FILE: Path = DATA_DIR / "orders.json"
     PRODUCTS_FILE: Path = DATA_DIR / "products.json"
 
-    @field_validator("JWT_EXPIRE_MINUTES", "REDIS_PORT", "REDIS_DB", mode="before")
+    @field_validator("JWT_EXPIRE_MINUTES", mode="before")
     @classmethod
     def parse_int_settings(cls, value, info):
         defaults = {
             "JWT_EXPIRE_MINUTES": 60,
-            "REDIS_PORT": 6379,
-            "REDIS_DB": 0,
         }
         if value is None or value == "":
             return defaults[info.field_name]
