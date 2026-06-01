@@ -5,15 +5,23 @@ from sessions.session_manager import Session
 
 
 class AgentService:
-    def __init__(self):
-        self.conv_repo = ConversationRepository()
-        self.user_repo = UserRepository()
+    def __init__(
+        self,
+        user_repository: UserRepository | None = None,
+        conversation_repository: ConversationRepository | None = None
+    ):
+        self.user_repository = user_repository or UserRepository()
+        self.conv_repo = conversation_repository or ConversationRepository()
 
-    def start_conversation(self, user_id: str) -> str:
+    async def start_conversation(self, user_id: str,conversation_id: str | None = None) -> str:
         """Creates a new conversation, returns conversation_id."""
+        if conversation_id:
+                meta = self.conv_repo.get(conversation_id)
+                if meta:
+                    return conversation_id
         conv = self.conv_repo.create(user_id)
 
-        memory_manager.init_conversation(
+        await memory_manager.init_conversation(
             conversation_id=conv.conversation_id,
             user_id=user_id
         )
@@ -29,7 +37,7 @@ class AgentService:
         """Process user message through the full agent pipeline."""
 
         # ── Step 1: get user ──────────────────────────────
-        user = self.user_repo.find_by_id(user_id)
+        user = self.user_repository.find_by_id(user_id)
         if not user:
             raise ValueError(f"User '{user_id}' not found.")
 
