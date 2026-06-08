@@ -38,14 +38,30 @@ class MemoryManager:
                 parts.append(f"{label}: {msg['content']}")
 
         return "\n".join(parts) if parts else ""
+    def get_summary(self, conversation_id: str) -> str | None:
+        """Get the current summary for this conversation"""
+        return self.store.get_summary(conversation_id)
+    
+    # ── Build ──────────────────────────────────────────────
 
     def build_langchain_messages(self, conversation_id: str) -> list[dict]:
         """Return history in LangChain format for ChatMessageHistory."""
         return self.store.get_history(conversation_id)
 
     def build_context(self, conversation_id: str) -> list[dict]:
-        """Full message list: recent messages only."""
-        messages = self.store.get_history(conversation_id)
+        """Full message list: summary (if exists) + recent history."""
+        messages = []
+        summary = self.get_summary(conversation_id)
+        
+        if summary:
+            messages.append({"role": "user", "content": f"Summary of conversation so far: {summary}"})
+            messages.append({
+                "role": "assistant",
+                "content": "Understood, I have context from our previous discussion."
+            })
+        messages += self.store.get_history(conversation_id)
+
+
         return messages
 
     # ── Summarization ─────────────────────────────────────
@@ -64,16 +80,30 @@ class MemoryManager:
 
         if not to_summarize:
             return
+        if existing:
+            prompt = f"""
+        You are summarizing an ongoing customer support conversation.
 
-        prompt = f"""
-        Summarize this customer support conversation concisely.
-        Keep: key issues raised, decisions made, orders mentioned, promises made.
+        Previous summary:
+        {existing}
 
-        Previous summary: {existing or 'None'}
-
-        New messages:
+        New messages to add:
         {self._format(to_summarize)}
+
+        Update the summary concisely (max 200 words).
+        Focus on: what was asked, what was resolved, open issues, orders mentioned.
         """
+        else:
+            prompt = f"""
+            Summarize this customer support conversation concisely.
+            Keep: key issues raised, decisions made, orders mentioned, promises made.
+
+            Previous summary: {existing or 'None'}
+
+            New messages:
+            {self._format(to_summarize)}
+            Focus on: what was asked, what was resolved, open issues, orders mentioned.
+            """
         new_summary = self.llm.invoke(prompt)
 
         self.store.save_summary(conversation_id, new_summary)
@@ -81,6 +111,8 @@ class MemoryManager:
             conversation_id=conversation_id,
             messages=to_keep
         )
+        print(f"[MemoryManager] summary saved ✓ ({len(to_summarize)} messages compressed)")
+
 
     async def maybe_summarize(self, conversation_id: str) -> None:
         """Trigger summarization only when threshold is reached."""

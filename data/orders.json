@@ -4,7 +4,23 @@
     "user_id": "2b84e7d6b2504321",
     "product_id": "p1",
     "quantity": 2,
-    "status": "processing",
+    "status": "cancelled",
     "date": "2026-05-21"
+  },
+  {
+    "order_id": "1002",
+    "user_id": "2b84e7d6b2504321",
+    "product_id": "p1",
+    "quantity": 2,
+    "status": "processing",
+    "date": "2026-06-01"
+  },
+  {
+    "order_id": "1003",
+    "user_id": "2b84e7d6b2504321",
+    "product_id": "p4",
+    "quantity": 3,
+    "status": "processing",
+    "date": "2026-06-01"
   }
 ]
