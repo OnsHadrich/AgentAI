@@ -42,4 +42,19 @@ def create_order_tools(tool: OrderTool) -> list[StructuredTool]:
             description="Change the quantity of an existing order.",
             args_schema=UpdateQuantityInput
         ),
+        StructuredTool.from_function(
+            func=tool._get_total_spent,
+            name="get_total_spent",
+            description="Calculate the total amount a customer has spent across all their orders."
+        ),
+        StructuredTool.from_function(
+            func=tool._get_order_details,
+            name="get_order_details",
+            description="Get detailed information about a specific order by order ID."
+        ),
+        StructuredTool.from_function(
+            func=tool._get_price_item,
+            name="get_price_item",
+            description="Get a price breakdown for a specific order by order ID."
+        )
     ]
