@@ -162,3 +162,35 @@ class OrderTool:
 
         self.order_repo.update_quantity(order_id, quantity)
         return f"Order {order_id} updated: {old_qty} → {quantity} units.{stock_msg}"
+    
+    def _get_total_spent(self, user_id: str) -> str:
+        orders = self.order_repo.find_by_user(user_id)
+        if not orders:
+            return f"No orders found for user {user_id}."
+        total = 0.0
+        for order in orders:
+            product = self.product_repo.find_by_id(order.product_id)
+            if product:
+                total += product.price * order.quantity
+        return f"Total spent by user {user_id}: ${total:.2f}"
+    
+    def _get_price_item(self, product_id: str) -> str:
+        product = self.product_repo.find_by_id(product_id)
+        if not product:
+            return f"No product found with ID: {product_id}."
+        return f"Price of '{product.name}' (ID: {product_id}): ${product.price:.2f}"
+    def _get_order_details(self, order_id: str) -> str:
+        order = self.order_repo.find_by_id(order_id)
+        if not order:
+            return f"No order found with ID: {order_id}."
+        product = self.product_repo.find_by_id(order.product_id)
+        return (
+            f"Details for Order #{order.order_id}:\n"
+            f"  User ID   : {order.user_id}\n"
+            f"  Product   : {order.product_id}\n"
+            f"  Quantity  : {order.quantity}\n"
+            f"  Status    : {order.status}\n"
+            f"  Date      : {order.date}\n"
+            f"  Price     : ${product.price if product else 'N/A'}\n"
+            f"  Warranty  : {product.warranty_years if product else 'N/A'} year(s)"
+        )
