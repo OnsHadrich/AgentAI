@@ -40,7 +40,11 @@ class AgentService:
         user = self.user_repository.find_by_id(user_id)
         if not user:
             raise ValueError(f"User '{user_id}' not found.")
-
+        
+        existing_summary = self.conv_repo.get_summary(conversation_id)
+        if existing_summary:
+            print(f"[AgentService] existing summary found for conversation {conversation_id}:\n{existing_summary}\n")
+            
         # ── Step 2: build session ─────────────────────────
         session = Session(user=user)
         session.conversation_id = conversation_id
