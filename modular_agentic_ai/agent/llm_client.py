@@ -1,5 +1,5 @@
 from typing import cast
-
+from langsmith import traceable
 from langchain_groq import ChatGroq
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from pydantic import SecretStr
@@ -35,7 +35,7 @@ class LLMClient:
             api_key=cast(SecretStr, self.api_key),
             max_tokens=self.max_tokens,
         )
-
+    @traceable(run_type="llm", name="LLMClient.invoke")      
     def invoke(self, prompt: str) -> str:
         """
         Simple single prompt call.
@@ -47,7 +47,7 @@ class LLMClient:
     def _extract_content(self, response) -> str:
         content = response.content
         return content if isinstance(content, str) else str(content)
-
+    @traceable(run_type="llm", name="LLMClient.chat")       
     def chat(self, system: str, messages: list[dict]) -> str:
         """
         Multi-turn chat call with a system prompt.
