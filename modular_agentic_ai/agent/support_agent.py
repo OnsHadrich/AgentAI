@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any, cast
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -16,7 +17,7 @@ memory_manager = MemoryManager()
 llm_client = LLMClient()
 
 
-async def _build_chat_history(conversation_id: str) -> ChatMessageHistory:
+def _build_chat_history(conversation_id: str) -> ChatMessageHistory:
     """Load history from MongoDB and return as LangChain ChatMessageHistory."""
     chat_history = ChatMessageHistory()
     messages = memory_manager.build_langchain_messages(conversation_id)
@@ -54,7 +55,7 @@ async def create_support_agent(session: Session):
         user=session.user,
         memory_context=memory_context
     )
-
+    
     return create_agent(
         model=llm_client.raw,
         tools=tools,
@@ -85,24 +86,34 @@ def _extract_reply(response) -> str:
 async def run_agent(session: Session, user_input: str) -> str:
     """Run the agent, persist messages, trigger summarization."""
     agent = await create_support_agent(session)
-    chat_history = await _build_chat_history(session.conversation_id)
+    chat_history = _build_chat_history(session.conversation_id)
 
     memory_manager.add_user_message(
         session.conversation_id, user_input
     )
 
     response = agent.invoke(
-        {"messages": [*chat_history.messages, HumanMessage(content=user_input)]}
+        cast(
+            Any,
+            {"messages": 
+                [*chat_history.messages, 
+                 HumanMessage(content=user_input)
+                 ]}
+
+        )
+        
     )
 
     reply = _extract_reply(response)
+    # ── save assistant reply to MongoDB ───────────────────
 
     memory_manager.add_assistant_message(
         session.conversation_id, reply
     )
-
-    asyncio.create_task(                            # fire and forget
-        memory_manager.maybe_summarize(session.conversation_id)
-    )
-
+    # ── summarize ─────────────────────────────────────────
+    if memory_manager.should_summarize(session.conversation_id):
+        await memory_manager.summarize(session.conversation_id)      # ← compress at threshold
+    else:
+        memory_manager.save_summary(session.conversation_id) 
+  
     return reply
