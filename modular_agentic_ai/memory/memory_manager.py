@@ -1,5 +1,6 @@
 from modular_agentic_ai.agent.llm_client import LLMClient
 from modular_agentic_ai.memory.conversation_store import ConversationStore
+from langsmith import traceable
 
 
 class MemoryManager:
@@ -69,7 +70,7 @@ class MemoryManager:
     def should_summarize(self, conversation_id: str) -> bool:
         count = self.store.get_message_count(conversation_id)
         return count >= self.SUMMARY_THRESHOLD
-
+    @traceable(run_type="chain", name="MemoryManager.save_summary")
     def save_summary(self, conversation_id: str) -> None:
             """Save summary after every reply — always runs."""
             history = self.store.get_history(conversation_id)
@@ -111,7 +112,7 @@ class MemoryManager:
                 print(f"[MemoryManager] preview: {new_summary[:100]}...")
             except Exception as e:
                 print(f"[MemoryManager] save_summary_now ERROR: {e}")
-
+    @traceable(run_type="chain", name="MemoryManager.summarize")
     async def summarize(self, conversation_id: str) -> None:
         """Compress old history into a summary, keep only last 4 messages."""
         history = self.store.get_history(conversation_id)
