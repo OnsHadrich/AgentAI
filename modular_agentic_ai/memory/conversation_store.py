@@ -118,7 +118,7 @@ class ConversationStore:
                     "created_at": datetime.utcnow()
                 }
             },
-            upsert=True   # ← only insert if not exists
+            upsert=True   
         )
 
     def get_meta(self, conversation_id: str) -> dict | None:
