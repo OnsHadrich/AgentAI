@@ -10,3 +10,4 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 redis==5.2.1
 pymongo[srv]==4.10.1
+langsmith==0.2.0
