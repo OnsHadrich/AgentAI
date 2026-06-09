@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-
+from core.langsmith_config import setup_langsmith      # ← add
 from core.container import Container
 from api.routes import auth, chat, orders, products
 from database.mongodb import MongoDB
@@ -15,6 +15,7 @@ async def lifespan(app: FastAPI):
     Runs on startup and shutdown.
     """
     # ── Startup ───────────────────────────────────────────
+    setup_langsmith()  # ← configure LangSmith tracing on startup
     print("Starting ShopAI Support API...")
 
     try:
