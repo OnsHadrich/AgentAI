@@ -62,6 +62,11 @@ class Configs(BaseSettings):
     USERS_FILE: Path = DATA_DIR / "users.json"
     ORDERS_FILE: Path = DATA_DIR / "orders.json"
     PRODUCTS_FILE: Path = DATA_DIR / "products.json"
+    # add these fields to your existing Configs class
+    LANGCHAIN_TRACING_V2: str = "true"
+    LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
+    LANGCHAIN_API_KEY: str = ""
+    LANGCHAIN_PROJECT: str = "shopai-support"
 
     @field_validator("JWT_EXPIRE_MINUTES", mode="before")
     @classmethod
