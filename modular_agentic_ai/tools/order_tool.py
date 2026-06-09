@@ -168,11 +168,21 @@ class OrderTool:
         if not orders:
             return f"No orders found for user {user_id}."
         total = 0.0
+        lines = []
         for order in orders:
             product = self.product_repo.find_by_id(order.product_id)
             if product:
-                total += product.price * order.quantity
-        return f"Total spent by user {user_id}: ${total:.2f}"
+                subtotal = product.price * order.quantity
+                total += subtotal
+            lines.append(
+                f"  Order #{order.order_id}: {order.quantity} "
+                f"{product.name if product else 'Unknown Product'} @ ${product.price if product else 'N/A'} each = ${subtotal:.2f}"
+            )
+        result = "Your cart summary:\n"
+        result += "\n".join(lines)
+        result += f"\n{'─' * 40}"
+        result += f"\n  TOTAL : ${total:.2f}"
+        return result
     
     def _get_price_item(self, product_id: str) -> str:
         product = self.product_repo.find_by_id(product_id)
