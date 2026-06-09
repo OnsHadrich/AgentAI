@@ -111,9 +111,8 @@ async def run_agent(session: Session, user_input: str) -> str:
         session.conversation_id, reply
     )
     # ── summarize ─────────────────────────────────────────
-    if memory_manager.should_summarize(session.conversation_id):
-        await memory_manager.summarize(session.conversation_id)      # ← compress at threshold
-    else:
-        memory_manager.save_summary(session.conversation_id) 
-  
+    # ── fire and forget ────────────────────────────────────
+    asyncio.create_task(
+        memory_manager.maybe_summarize(session.conversation_id)  # ← coroutine now
+    )
     return reply
