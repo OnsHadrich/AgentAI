@@ -160,6 +160,8 @@ class MemoryManager:
         """Trigger summarization only when threshold is reached."""
         if self.should_summarize(conversation_id):
             await self.summarize(conversation_id)
+        else:
+            self.save_summary(conversation_id)
 
     # ── Meta ──────────────────────────────────────────────
 
