@@ -3,6 +3,7 @@ from typing import Any, cast
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langsmith import traceable  
 
 from modular_agentic_ai.tools.order_tool import OrderTool
 from modular_agentic_ai.tools.product_tool import ProductTool
@@ -82,7 +83,10 @@ def _extract_reply(response) -> str:
 
     return str(response)
 
-
+@traceable(                                               
+    run_type="chain",
+    name="ShopAI Support Agent",
+)
 async def run_agent(session: Session, user_input: str) -> str:
     """Run the agent, persist messages, trigger summarization."""
     agent = await create_support_agent(session)
@@ -100,7 +104,17 @@ async def run_agent(session: Session, user_input: str) -> str:
                  HumanMessage(content=user_input)
                  ]}
 
-        )
+        ),
+        config={
+            "run_name": f"chat-{session.user_id}",           # ← shows in dashboard
+            "tags": [session.tier, "support-agent"],         # ← filter by tag
+            "metadata": {                                    # ← extra context
+                "user_id": session.user_id,
+                "user_name": session.user_name,
+                "tier": session.tier,
+                "conversation_id": session.conversation_id,
+            }
+        }
         
     )
 
