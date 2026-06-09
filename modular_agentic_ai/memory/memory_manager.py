@@ -10,7 +10,7 @@ class MemoryManager:
     ):
         self.store = store or ConversationStore()
         self.llm = llm or LLMClient()
-        self.SUMMARY_THRESHOLD = 15
+        self.SUMMARY_THRESHOLD = 5  # number of messages before summarization
 
     # ── Write ─────────────────────────────────────────────
 
@@ -69,6 +69,48 @@ class MemoryManager:
     def should_summarize(self, conversation_id: str) -> bool:
         count = self.store.get_message_count(conversation_id)
         return count >= self.SUMMARY_THRESHOLD
+
+    def save_summary(self, conversation_id: str) -> None:
+            """Save summary after every reply — always runs."""
+            history = self.store.get_history(conversation_id)
+
+            if not history:
+                return
+
+            existing = self.store.get_summary(conversation_id)
+
+            if existing:
+                prompt = f"""
+    You are summarizing an ongoing customer support conversation.
+
+    Previous summary:
+    {existing}
+
+    New messages to incorporate:
+    {self._format(history)}
+
+    Update the summary concisely (max 200 words).
+    Focus on: what was asked, what was resolved, open issues, orders mentioned.
+    Do not repeat what is already in the previous summary unless updated.
+    """
+            else:
+                prompt = f"""
+    You are summarizing a customer support conversation.
+
+    Messages:
+    {self._format(history)}
+
+    Write a concise summary (max 200 words).
+    Focus on: what was asked, what was resolved, open issues, orders mentioned.
+    """
+
+            try:
+                new_summary = self.llm.invoke(prompt)
+                self.store.save_summary(conversation_id, new_summary)
+                print(f"[MemoryManager] summary saved ✓")
+                print(f"[MemoryManager] preview: {new_summary[:100]}...")
+            except Exception as e:
+                print(f"[MemoryManager] save_summary_now ERROR: {e}")
 
     async def summarize(self, conversation_id: str) -> None:
         """Compress old history into a summary, keep only last 4 messages."""
