@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.langsmith_config import setup_langsmith      # ← add
 from core.container import Container
-from api.routes import auth, chat, orders, products
+from api.routes import auth, chat, orders, products, whatsapp
 from database.mongodb import MongoDB
 from modular_agentic_ai.memory.conversation_store import ConversationStore
 
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
         "api.routes.chat",
         "api.routes.orders",
         "api.routes.products",
+        "api.routes.whatsapp", 
         "core.dependencies",
     ])
 
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router,     prefix="/api/v1")
     app.include_router(orders.router,   prefix="/api/v1")
     app.include_router(products.router, prefix="/api/v1")
+    app.include_router(whatsapp.router, prefix="/api/v1")
 
     # ── Base endpoints ────────────────────────────────────
     @app.get("/", tags=["Health"])
