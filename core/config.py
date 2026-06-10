@@ -67,6 +67,13 @@ class Configs(BaseSettings):
     LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGCHAIN_API_KEY: str = ""
     LANGCHAIN_PROJECT: str = "shopai-support"
+    
+    # ── WhatsApp API Configurations ───────────────────────
+    WHATSAPP_API_URL: str = "https://graph.facebook.com/v17.0"
+    WHATSAPP_PHONE_NUMBER_ID: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    WHATSAPP_ACCESS_TOKEN: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+    WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+    
 
     @field_validator("JWT_EXPIRE_MINUTES", mode="before")
     @classmethod
