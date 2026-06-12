@@ -62,6 +62,7 @@ class Configs(BaseSettings):
     USERS_FILE: Path = DATA_DIR / "users.json"
     ORDERS_FILE: Path = DATA_DIR / "orders.json"
     PRODUCTS_FILE: Path = DATA_DIR / "products.json"
+    
     # add these fields to your existing Configs class
     LANGCHAIN_TRACING_V2: str = "true"
     LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
@@ -69,10 +70,12 @@ class Configs(BaseSettings):
     LANGCHAIN_PROJECT: str = "shopai-support"
     
     # ── WhatsApp API Configurations ───────────────────────
-    WHATSAPP_API_URL: str = "https://graph.facebook.com/v17.0"
-    WHATSAPP_PHONE_NUMBER_ID: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
-    WHATSAPP_ACCESS_TOKEN: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-    WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+    # WhatsApp
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_BUSINESS_ACCOUNT_ID: str = ""
+    WHATSAPP_ACCESS_TOKEN: str = ""
+    WHATSAPP_VERIFY_TOKEN: str = ""
+    WHATSAPP_API_URL: str = "https://graph.facebook.com/v25.0"
     
 
     @field_validator("JWT_EXPIRE_MINUTES", mode="before")
