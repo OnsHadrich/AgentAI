@@ -1,4 +1,7 @@
 import json
+from services.agent_service import AgentService
+
+agent_service = AgentService()
 
 # ── Load data ─────────────────────────────────────────────
 with open("data/orders.json", "r") as f:
@@ -15,3 +18,14 @@ def save_orders():
 def save_products():
     with open("data/products.json", "w") as f:
         json.dump(list(PRODUCTS.values()), f, indent=2)
+
+# ── Conversation tracking ─────────────────────────────────
+_conversations = {}
+
+def _get_conversation_id(phone_number: str) -> str:
+    """Get or create a conversation for this phone number."""
+    if phone_number not in _conversations:
+        conversation_id = agent_service.start_conversation(phone_number)
+        _conversations[phone_number] = conversation_id
+        print(f"[WhatsApp] Created conversation {conversation_id} for {phone_number}")
+    return _conversations[phone_number]
