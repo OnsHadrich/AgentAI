@@ -3,6 +3,9 @@ import requests
 from core.config import Configs
 
 configs= Configs()
+
+# ── Base URL ──────────────────────────────────────────────
+ULTRAMSG_BASE = f"https://api.ultramsg.com/{configs.ULTRAMSG_INSTANCE_ID}"
 # ── Send Message ──────────────────────────────────────────
 def send_whatsapp_message(phone_number: str, text: str) -> None:
     """Send a message back to the user via WhatsApp."""
@@ -31,3 +34,22 @@ def send_whatsapp_message(phone_number: str, text: str) -> None:
     except requests.exceptions.RequestException as e:
         print(f"[WhatsApp] Failed to send: {e}")
 
+# ── Send Message ──────────────────────────────────────────
+def send_whatsapp_message_ultramsg(to: str, body: str) -> None:
+    """Send WhatsApp message via UltraMsg."""
+    try:
+        url = f"{ULTRAMSG_BASE}/messages/chat"
+
+        payload = {
+            "token": configs.ULTRAMSG_TOKEN,
+            "to": to,
+            "body": body
+        }
+
+        response = requests.post(url, json=payload)
+        result = response.json()
+
+        print(f"[WhatsApp] Sent to {to}: {result}")
+
+    except Exception as e:
+        print(f"[WhatsApp] Failed to send: {e}")
