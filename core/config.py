@@ -77,6 +77,9 @@ class Configs(BaseSettings):
     WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
     WHATSAPP_API_URL: str = os.getenv("WHATSAPP_API_URL", "https://graph.facebook.com/v17.0")
     
+    # UltraMSG
+    ULTRAMSG_API_TOKEN: str = os.getenv("ULTRAMSG_API_TOKEN", "")
+    ULTRAMSG_INSTANCE_ID: str = os.getenv("ULTRAMSG_INSTANCE_ID", "")
 
     @field_validator("JWT_EXPIRE_MINUTES", mode="before")
     @classmethod
