@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query, Request, HTTPException
 import json
+import requests
 from core.config import Configs
 from services.agent_service import AgentService
 from utils.helpers import _get_conversation_id
@@ -8,13 +9,24 @@ from utils.send_message_whatsapp import send_whatsapp_message,send_whatsapp_mess
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 configs = Configs()
 agent_service = AgentService()
-
-
-
-# ── Health check ──────────────────────────────────
-@router.get("/")
-async def home():
-    return {"message": "API is up"}
+# ────────────────────────Base URL─────────────────────
+ULTRAMSG_BASE = f"https://api.ultramsg.com/{configs.ULTRAMSG_INSTANCE_ID}"
+# ── Health check ──────────────────────────────────────────
+@router.get("/health")
+def whatsapp_health():
+    """Check UltraMsg connection status."""
+    try:
+        url = f"{ULTRAMSG_BASE}/instance/status"
+        params = {"token": configs.ULTRAMSG_TOKEN}
+        response = requests.get(url, params=params)
+        result = response.json()
+        return {
+            "ultramsg_status": result.get("status", "unknown"),
+            "instance": configs.ULTRAMSG_INSTANCE_ID,
+            "connected": result.get("status") == "connected"
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 # ── Webhook Verification ──────────────────────────────────
 @router.get("/webhook")
 def verify_webhook(
