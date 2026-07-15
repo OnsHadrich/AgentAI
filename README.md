@@ -54,8 +54,8 @@ The project is organized into clear modules to separate concerns and make the ba
 flowchart LR
     A[User] --> B[FastAPI API]
     B --> C[Authentication]
-    B --> D[Chat / Agent Service]
+    C --> D[Chat / Agent Service]
     D --> E[Agent Logic]
     E --> F[Tools / Repositories]
     F --> G[MongoDB / Data Store]
-    E --> H[Response to User]
+    F --> H[Response to User]
