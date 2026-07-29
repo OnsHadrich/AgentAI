@@ -29,7 +29,8 @@ async def chat_root(
         reply = await agent_service.reply(
             user_id=current_user.user_id,
             conversation_id=conversation_id,
-            user_message=body.message
+            user_message=body.message,
+            channel="app"
         )
 
         return ChatResponse(
@@ -65,7 +66,8 @@ async def chat(
         reply = await agent_service.reply(
             user_id=current_user.user_id,
             conversation_id=conversation_id,
-            user_message=body.message
+            user_message=body.message,
+            channel="app"
         )
 
         return ChatResponse(
