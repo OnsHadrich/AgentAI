@@ -4,26 +4,25 @@ import requests
 from core.config import Configs
 from services.agent_service import AgentService
 from utils.helpers import _get_conversation_id
-from utils.send_message_whatsapp import send_whatsapp_message,send_whatsapp_message_ultramsg
-
+from utils.send_message_whatsapp import send_whatsapp_message
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 configs = Configs()
 agent_service = AgentService()
-# ────────────────────────Base URL─────────────────────
-ULTRAMSG_BASE = f"https://api.ultramsg.com/{configs.ULTRAMSG_INSTANCE_ID}"
+
+GRAPH_API_URL = f"{configs.WHATSAPP_API_URL}/{configs.WHATSAPP_PHONE_NUMBER_ID}/messages"
+
 # ── Health check ──────────────────────────────────────────
 @router.get("/health")
 def whatsapp_health():
-    """Check UltraMsg connection status."""
     try:
-        url = f"{ULTRAMSG_BASE}/instance/status"
-        params = {"token": configs.ULTRAMSG_TOKEN}
-        response = requests.get(url, params=params)
-        result = response.json()
+        url = f"{configs.WHATSAPP_API_URL}/{configs.WHATSAPP_PHONE_NUMBER_ID}"
+        headers = {"Authorization": f"Bearer {configs.WHATSAPP_ACCESS_TOKEN}"}
+        response = requests.get(url, headers=headers)
+        data = response.json()
         return {
-            "ultramsg_status": result.get("status", "unknown"),
-            "instance": configs.ULTRAMSG_INSTANCE_ID,
-            "connected": result.get("status") == "connected"
+            "status"      : "connected",
+            "phone_number": data.get("display_phone_number", "unknown"),
+            "verified"    : data.get("verified_name", "unknown")
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -44,7 +43,7 @@ def verify_webhook(
     print(f"  challenge: {hub_challenge}")
     print(f"  expected token: {configs.WHATSAPP_VERIFY_TOKEN}")
 
-    if hub_mode != "subscribe":
+    if hub_mode != "subscribe" :
         raise HTTPException(status_code=403, detail="Invalid mode")
 
     if hub_verify_token != configs.WHATSAPP_VERIFY_TOKEN:
@@ -56,92 +55,109 @@ def verify_webhook(
 
 
 # ── Handling incoming messages ──────────────────────────────────────
-# @router.post("/webhook")
-# async def receive_whatsapp_message(request: Request):
-#     """
-#     Receive messages from WhatsApp.
-#     """
-#     try:
-#         data = await request.json()
-#         print(f"[WhatsApp] Received: {json.dumps(data, indent=2)}")
-#         if data:
-#             for entry in data.get("entry", []):
-#                 for change in entry.get("changes", []):
-#                     value = change.get("value", {})
-#                     phone_number_id = value.get("metadata", {}).get("phone_number_id")
-#                     messages_data = value.get("messages", [])
-#                     if messages_data:
-#                         for message in messages_data:
-#                             phone_number = message.get("from")
-#                             text = message.get("text", {}).get("body", "")
-#                             if text:
-#                                 print(f"[WhatsApp] Message from {phone_number}: {text}")
-#                                 # Get or create conversation
-#                                 conversation_id = _get_conversation_id(phone_number)
-
-#                                 # Call your chat API
-#                                 reply = await agent_service.reply(
-#                                     user_id=phone_number,
-#                                     conversation_id=conversation_id,
-#                                     user_message=text
-#                                 )
-
-#                                 # Send reply back
-#                                 send_whatsapp_message(phone_number, reply)
-#         return {"status": 200, "message": "Message processed"}
-#     except Exception as e:
-#         print(f"[WhatsApp] Error: {e}")
-#         import traceback
-#         print(traceback.format_exc())
-#         return {"status": 500, "error": str(e)}
-
 @router.post("/webhook")
 async def receive_whatsapp_message(request: Request):
     """
-    Receive WhatsApp messages from UltraMsg.
-    UltraMsg sends JSON data.
+    Receive messages from WhatsApp.
+    Loops through ALL entries and messages — handles bulk payloads.
     """
     try:
-        body = await request.json()
-        print(f"[WhatsApp] Received: {json.dumps(body, indent=2)}")
+        data = await request.json()
+        print(f"[WhatsApp] Payload received: {json.dumps(data, indent=2)}")
 
-        # extract message data
-        data = body.get("data", {})
-        message_body = data.get("body", "")
-        from_number = data.get("from", "")
-        msg_type = data.get("type", "")
+        if not data:
+            return {"status": 200, "message": "Empty payload"}
 
-        # only process text messages
-        if msg_type != "chat":
-            print(f"[WhatsApp] Skipping non-text message type: {msg_type}")
-            return {"status": "ok"}
+        processed = 0
+        skipped   = 0
 
-        if not message_body or not from_number:
-            return {"status": "ok"}
+        for entry in data.get("entry", []):
+            for change in entry.get("changes", []):
 
-        # skip messages sent BY the bot (avoid loops)
-        if data.get("fromMe", False):
-            return {"status": "ok"}
+                value = change.get("value", {})
 
-        print(f"[WhatsApp] Message from {from_number}: {message_body}")
+                # ── skip status updates ────────────────────
+                # Meta sends status updates (delivered, read)
+                # we don't want to process those as messages
+                if "statuses" in value:
+                    skipped += 1
+                    continue
 
-        # get or create conversation
-        conversation_id = _get_conversation_id(from_number)
+                # ── get metadata ───────────────────────────
+                metadata        = value.get("metadata", {})
+                phone_number_id = metadata.get("phone_number_id", "")
 
-        # call your agent
-        reply = await agent_service.reply(
-            user_id=from_number,
-            conversation_id=conversation_id,
-            user_message=message_body
-        )
 
-        # send reply back
-        send_whatsapp_message_ultramsg(to=from_number, body=reply)
+                # ── process each message ───────────────────
+                for message in value.get("messages", []):
 
-        return {"status": "ok"}
+                    msg_type    = message.get("type", "")
+                    from_number = message.get("from", "")
+                    
+                    # ── get sender name in one line ────────────────────
+                    sender_name = next(
+                        (
+                            contact.get("profile", {}).get("name", "Customer")
+                            for contact in value.get("contacts", [])
+                            if contact.get("wa_id") == from_number
+                        ),
+                        "Customer"
+                    )
+
+                    print(f"[WhatsApp] {sender_name} ({from_number}): {msg_type}")
+
+                    # ── only handle text messages ──────────
+                    if msg_type != "text":
+                        print(f"[WhatsApp] Skipping {msg_type} from {from_number}")
+                        skipped += 1
+                        continue
+
+                    text = message.get("text", {}).get("body", "").strip()
+
+                    if not text or not from_number:
+                        skipped += 1
+                        continue
+
+                    print(f"[WhatsApp] {sender_name} ({from_number}): {text}")
+
+                    try:
+                        # ── get or create conversation ─────
+                        conversation_id = _get_conversation_id(from_number)
+
+                        # ── call your agent ────────────────
+                        reply = await agent_service.reply(
+                            user_id=from_number,
+                            conversation_id=conversation_id,
+                            user_message=text
+                        )
+
+                        # ── send reply ─────────────────────
+                        send_whatsapp_message(from_number, reply,phone_number_id)
+
+                        processed += 1
+
+                    except Exception as msg_error:
+                        print(f"[WhatsApp] Error processing message from {from_number}: {msg_error}")
+                        import traceback
+                        print(traceback.format_exc())
+
+                        # notify user of error
+                        send_whatsapp_message(
+                            from_number,
+                            "Sorry, I encountered an error. Please try again.",
+                            phone_number_id
+                        )
+                        skipped += 1
+
+        print(f"[WhatsApp] Done — processed: {processed}, skipped: {skipped}")
+        return {
+            "status"   : 200,
+            "processed": processed,
+            "skipped"  : skipped
+        }
 
     except Exception as e:
-        print(f"[WhatsApp] Error: {e}")
+        print(f"[WhatsApp] Fatal error: {e}")
         import traceback
         print(traceback.format_exc())
-        return {"status": "error", "detail": str(e)}
+        return {"status": 500, "error": str(e)}

@@ -4,16 +4,16 @@ from core.config import Configs
 
 configs= Configs()
 
-# ── Base URL ──────────────────────────────────────────────
-ULTRAMSG_BASE = f"https://api.ultramsg.com/{configs.ULTRAMSG_INSTANCE_ID}"
+
 # ── Send Message ──────────────────────────────────────────
-def send_whatsapp_message(phone_number: str, text: str) -> None:
+def send_whatsapp_message(phone_number: str, text: str, phone_number_id: str) -> None:
     """Send a message back to the user via WhatsApp."""
     if not configs.WHATSAPP_ACCESS_TOKEN:
         print(f"[WhatsApp] No access token configured")
         return
+    number_id = phone_number_id or configs.WHATSAPP_PHONE_NUMBER_ID
 
-    url = f"{configs.WHATSAPP_API_URL}/{configs.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    url = f"{configs.WHATSAPP_API_URL}/{number_id}/messages"
 
     headers = {
         "Authorization": f"Bearer {configs.WHATSAPP_ACCESS_TOKEN}",
@@ -22,6 +22,7 @@ def send_whatsapp_message(phone_number: str, text: str) -> None:
 
     payload = {
         "messaging_product": "whatsapp",
+        "recipient_type": "individual",
         "to": phone_number,
         "type": "text",
         "text": {"preview_url": False, "body": text},
@@ -29,27 +30,11 @@ def send_whatsapp_message(phone_number: str, text: str) -> None:
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        print(f"[WhatsApp] Sent to {phone_number} ✓")
+
+        print(f"[WhatsApp] Sent to {phone_number}: {response.status_code} ✓")
+
+        if response.raise_for_status() !=200:
+            print(f"[WhatsApp] Failed to send: {response.text}")
     except requests.exceptions.RequestException as e:
         print(f"[WhatsApp] Failed to send: {e}")
 
-# ── Send Message ──────────────────────────────────────────
-def send_whatsapp_message_ultramsg(to: str, body: str) -> None:
-    """Send WhatsApp message via UltraMsg."""
-    try:
-        url = f"{ULTRAMSG_BASE}/messages/chat"
-
-        payload = {
-            "token": configs.ULTRAMSG_TOKEN,
-            "to": to,
-            "body": body
-        }
-
-        response = requests.post(url, json=payload)
-        result = response.json()
-
-        print(f"[WhatsApp] Sent to {to}: {result}")
-
-    except Exception as e:
-        print(f"[WhatsApp] Failed to send: {e}")
