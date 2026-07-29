@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Query, Request, HTTPException
+from fastapi.responses import PlainTextResponse
 import json
 import requests
 from core.config import Configs
@@ -51,7 +52,7 @@ def verify_webhook(
         raise HTTPException(status_code=403, detail="Invalid verification token")
 
     print(f"[WhatsApp] Webhook verified ✓")
-    return {"status": 200, "body": hub_challenge}
+    return PlainTextResponse(content=hub_challenge, status_code=200)
 
 
 # ── Handling incoming messages ──────────────────────────────────────
@@ -122,13 +123,14 @@ async def receive_whatsapp_message(request: Request):
 
                     try:
                         # ── get or create conversation ─────
-                        conversation_id = _get_conversation_id(from_number)
+                        conversation_id = await _get_conversation_id(from_number)
 
                         # ── call your agent ────────────────
                         reply = await agent_service.reply(
                             user_id=from_number,
                             conversation_id=conversation_id,
-                            user_message=text
+                            user_message=text,
+                            channel="whatsapp"
                         )
 
                         # ── send reply ─────────────────────
