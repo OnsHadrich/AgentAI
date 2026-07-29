@@ -107,3 +107,30 @@ class UserRepository:
 
     def close_scoped_session(self) -> None:
         pass
+    
+    def _build_whatsapp_user(self, phone_number: str):
+        """
+        Build a guest User object for WhatsApp users.
+        Phone number is used as user_id since they're not in DB.
+        """
+        from model.user_model import User
+
+        # clean phone number → use as ID
+        # e.g. "21698765432" or "whatsapp:+21698765432"
+        clean_number = (
+            phone_number
+            .replace("whatsapp:", "")
+            .replace("+", "")
+            .strip()
+        )
+
+        return User(
+            user_id=clean_number,
+            name=f"WhatsApp User",          # ← no name available yet
+            email=f"{clean_number}@whatsapp.com",
+            tier="standard",                # ← default tier
+            is_active=True,
+            is_superuser=False,
+            password="",
+            password_hash=""
+        )
