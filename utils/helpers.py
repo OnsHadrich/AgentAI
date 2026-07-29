@@ -22,10 +22,13 @@ def save_products():
 # ── Conversation tracking ─────────────────────────────────
 _conversations = {}
 
-def _get_conversation_id(phone_number: str) -> str:
+async def _get_conversation_id(phone_number: str) -> str:
     """Get or create a conversation for this phone number."""
     if phone_number not in _conversations:
-        conversation_id = agent_service.start_conversation(phone_number)
+        conversation_id = await agent_service.start_conversation(phone_number)
         _conversations[phone_number] = conversation_id
         print(f"[WhatsApp] Created conversation {conversation_id} for {phone_number}")
     return _conversations[phone_number]
+
+
+
