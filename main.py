@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from api.routes.channels import whatsapp
 from core.langsmith_config import setup_langsmith      # ← add
 from core.container import Container
-from api.routes import auth, chat, orders, products, whatsapp
+from api.routes import auth, chat, orders, products
 from database.mongodb import MongoDB
 from modular_agentic_ai.memory.conversation_store import ConversationStore
 
