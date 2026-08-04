@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from api.routes.channels import whatsapp
+from api.routes.channels import instagram, messenger, whatsapp
 from core.langsmith_config import setup_langsmith      # ← add
 from core.container import Container
 from api.routes import auth, chat, orders, products
@@ -45,7 +45,9 @@ def create_app() -> FastAPI:
         "api.routes.chat",
         "api.routes.orders",
         "api.routes.products",
-        "api.routes.whatsapp", 
+        "api.routes.channels.whatsapp",
+        "api.routes.channels.messenger",
+        "api.routes.channels.instagram",
         "core.dependencies",
     ])
 
@@ -77,7 +79,8 @@ def create_app() -> FastAPI:
     app.include_router(orders.router,   prefix="/api/v1")
     app.include_router(products.router, prefix="/api/v1")
     app.include_router(whatsapp.router, prefix="/api/v1")
-
+    app.include_router(messenger.router, prefix="/api/v1")
+    app.include_router(instagram.router, prefix="/api/v1")
     # ── Base endpoints ────────────────────────────────────
     @app.get("/", tags=["Health"])
     def root():
