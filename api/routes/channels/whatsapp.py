@@ -6,6 +6,7 @@ from core.config import Configs
 from services.agent_service import AgentService
 from utils.helpers import _get_conversation_id
 from utils.send_message_whatsapp import send_whatsapp_message
+
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 configs = Configs()
 agent_service = AgentService()
@@ -130,7 +131,8 @@ async def receive_whatsapp_message(request: Request):
                             user_id=from_number,
                             conversation_id=conversation_id,
                             user_message=text,
-                            channel="whatsapp"
+                            channel="whatsapp",
+                            sender_name=sender_name
                         )
 
                         # ── send reply ─────────────────────
