@@ -107,8 +107,31 @@ class UserRepository:
 
     def close_scoped_session(self) -> None:
         pass
+
+    def _build_social_user(self, user_id: str, channel: str, display_name: str) -> User:
+        """
+        Build a guest User object for social channel users.
+        Platform ID is used because these users are not stored in DB.
+        """
+        clean_id = (
+            user_id
+            .replace(f"{channel}:", "")
+            .replace("+", "")
+            .strip()
+        )
+
+        return User(
+            user_id=f"{channel}_{clean_id}",
+            name=display_name,
+            email=f"{clean_id}@{channel}.com",
+            tier="standard",
+            is_active=True,
+            is_superuser=False,
+            password="",
+            password_hash=""
+        )
     
-    def _build_whatsapp_user(self, phone_number: str):
+    def _build_whatsapp_user(self, phone_number: str, display_name: str = "WhatsApp User") -> User:
         """
         Build a guest User object for WhatsApp users.
         Phone number is used as user_id since they're not in DB.
@@ -126,11 +149,33 @@ class UserRepository:
 
         return User(
             user_id=clean_number,
-            name=f"WhatsApp User",          # ← no name available yet
+            name=display_name,
             email=f"{clean_number}@whatsapp.com",
-            tier="standard",                # ← default tier
+            tier="standard",
             is_active=True,
             is_superuser=False,
             password="",
             password_hash=""
+        )
+
+    def _build_instagram_user(self, instagram_user_id: str) -> User:
+        """
+        Build a guest User object for Instagram users.
+        Instagram user ID is used because they're not in DB.
+        """
+        return self._build_social_user(
+            user_id=instagram_user_id,
+            channel="instagram",
+            display_name="Instagram User"
+        )
+
+    def _build_messenger_user(self, messenger_user_id: str) -> User:
+        """
+        Build a guest User object for Messenger users.
+        Messenger user ID is used because they're not in DB.
+        """
+        return self._build_social_user(
+            user_id=messenger_user_id,
+            channel="messenger",
+            display_name="Messenger User"
         )
