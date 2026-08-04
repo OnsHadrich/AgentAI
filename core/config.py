@@ -80,6 +80,14 @@ class Configs(BaseSettings):
     # UltraMSG
     ULTRAMSG_TOKEN: str = os.getenv("ULTRAMSG_TOKEN", "")
     ULTRAMSG_INSTANCE_ID: str = os.getenv("ULTRAMSG_INSTANCE_ID", "")
+    
+    # Instagram Configurations
+    INSTAGRAM_ACCESS_TOKEN: str = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+    INSTAGRAM_VERIFY_TOKEN: str = os.getenv("INSTAGRAM_VERIFY_TOKEN", "")
+    
+    # Messenger Configurations
+    MESSENGER_ACCESS_TOKEN: str = os.getenv("MESSENGER_ACCESS_TOKEN", "")
+    MESSENGER_VERIFY_TOKEN: str = os.getenv("MESSENGER_VERIFY_TOKEN", "")
 
     @field_validator("JWT_EXPIRE_MINUTES", mode="before")
     @classmethod
